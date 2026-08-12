@@ -19,7 +19,7 @@ async function bootstrap() {
 
   // Cấu hình CORS cho phép Frontend call API linh hoạt trên Vercel
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (origin: any, callback: any) => {
       callback(null, true);
     },
     credentials: true,
