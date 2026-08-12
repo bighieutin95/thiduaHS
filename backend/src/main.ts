@@ -17,9 +17,11 @@ async function bootstrap() {
     }),
   );
 
-  // Cấu hình CORS cho phép Frontend call API
+  // Cấu hình CORS cho phép Frontend call API linh hoạt trên Vercel
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      callback(null, true);
+    },
     credentials: true,
   });
 
