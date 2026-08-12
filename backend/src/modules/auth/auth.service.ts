@@ -66,7 +66,16 @@ export class AuthService {
    * Tạo token giả lập và tự động scaffold dữ liệu kiểm thử nếu DB chưa có
    */
   async mockLogin(email: string) {
-    const userId = `mock-uid-${email.replace(/[@.]/g, '-')}`;
+    const getMockUuid = (e: string) => {
+      switch (e) {
+        case 'admin@thiduahs.com': return '00000000-0000-4000-a000-000000000001';
+        case 'loptruong@thiduahs.com': return '00000000-0000-4000-a000-000000000002';
+        case 'totruong1@thiduahs.com': return '00000000-0000-4000-a000-000000000003';
+        case 'hocsinh1@thiduahs.com': return '00000000-0000-4000-a000-000000000004';
+        default: return '11111111-1111-4111-a111-111111111111';
+      }
+    };
+    const userId = getMockUuid(email);
 
     // 1. Tạo hoặc lấy tài khoản hệ thống
     let user = await this.nguoiDungRepo.findOne({ where: { user_id: userId } });

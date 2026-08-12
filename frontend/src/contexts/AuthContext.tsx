@@ -86,8 +86,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const mockToken = localStorage.getItem('sb-access-token');
         if (mockToken && mockToken.startsWith('mock-token-')) {
           const email = mockToken.replace('mock-token-', '');
+          const getMockUuid = (e: string) => {
+            switch (e) {
+              case 'admin@thiduahs.com': return '00000000-0000-4000-a000-000000000001';
+              case 'loptruong@thiduahs.com': return '00000000-0000-4000-a000-000000000002';
+              case 'totruong1@thiduahs.com': return '00000000-0000-4000-a000-000000000003';
+              case 'hocsinh1@thiduahs.com': return '00000000-0000-4000-a000-000000000004';
+              default: return '11111111-1111-4111-a111-111111111111';
+            }
+          };
+
           const mockUser = {
-            id: `mock-uid-${email.replace(/[@.]/g, '-')}`,
+            id: getMockUuid(email),
             email,
           } as any;
           setUser(mockUser);
@@ -135,8 +145,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json();
         localStorage.setItem('sb-access-token', data.access_token);
         
+        const getMockUuid = (e: string) => {
+          switch (e) {
+            case 'admin@thiduahs.com': return '00000000-0000-4000-a000-000000000001';
+            case 'loptruong@thiduahs.com': return '00000000-0000-4000-a000-000000000002';
+            case 'totruong1@thiduahs.com': return '00000000-0000-4000-a000-000000000003';
+            case 'hocsinh1@thiduahs.com': return '00000000-0000-4000-a000-000000000004';
+            default: return '11111111-1111-4111-a111-111111111111';
+          }
+        };
+
         const mockUser = {
-          id: `mock-uid-${email.replace(/[@.]/g, '-')}`,
+          id: getMockUuid(email),
           email,
         } as any;
         
