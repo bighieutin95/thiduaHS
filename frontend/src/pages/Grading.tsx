@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Search, Calendar, FileText, XCircle } from 'lucide-react';
 
+interface Lop {
+  lop_id: number;
+  ten_lop: string;
+}
+
 interface HocSinh {
   hoc_sinh_id: number;
   ho_ten: string;
@@ -30,6 +35,8 @@ interface LichSu {
 
 export default function Grading() {
   const { profile } = useAuth();
+  const [classes, setClasses] = useState<Lop[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [students, setStudents] = useState<HocSinh[]>([]);
   const [criteria, setCriteria] = useState<TieuChi[]>([]);
   const [history, setHistory] = useState<LichSu[]>([]);
@@ -46,18 +53,37 @@ export default function Grading() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
   const token = localStorage.getItem('sb-access-token');
 
-  // Load danh sách học sinh
-  const loadStudents = useCallback(async () => {
-    if (!profile?.hoc_sinh) return;
+  // Load danh sách lớp học
+  const loadClasses = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/classes/${profile.hoc_sinh.lop_id}/students`, {
+      const res = await fetch(`${BACKEND_URL}/classes`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
-        // Lọc danh sách: Nếu là Tổ trưởng/Tổ phó, chỉ hiển thị thành viên trong tổ của mình
-        const vaiTro = profile.hoc_sinh.vai_tro_thi_dua;
-        if ((vaiTro === 'ToTruong' || vaiTro === 'ToPho') && profile.hoc_sinh.to_id) {
+        setClasses(data);
+        if (data.length > 0) {
+          const userClassId = profile?.hoc_sinh?.lop_id || data[0].lop_id;
+          setSelectedClassId(userClassId);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [profile, token, BACKEND_URL]);
+
+  // Load danh sách học sinh theo lớp được chọn
+  const loadStudents = useCallback(async () => {
+    const lopId = selectedClassId || profile?.hoc_sinh?.lop_id;
+    if (!lopId) return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/classes/${lopId}/students`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const vaiTro = profile?.hoc_sinh?.vai_tro_thi_dua;
+        if ((vaiTro === 'ToTruong' || vaiTro === 'ToPho') && profile?.hoc_sinh?.to_id) {
           const toId = profile.hoc_sinh.to_id;
           setStudents(data.filter((hs: any) => hs.to_id === toId));
         } else {
@@ -67,7 +93,7 @@ export default function Grading() {
     } catch (err) {
       console.error(err);
     }
-  }, [profile, token, BACKEND_URL]);
+  }, [selectedClassId, profile, token, BACKEND_URL]);
 
   // Load tiêu chí thi đua
   const loadCriteria = useCallback(async () => {
@@ -84,12 +110,13 @@ export default function Grading() {
     }
   }, [token, BACKEND_URL]);
 
-  // Load lịch sử chấm gần đây
+  // Load lịch sử chấm gần đây theo lớp
   const loadHistory = useCallback(async () => {
+    const lopId = selectedClassId || profile?.hoc_sinh?.lop_id;
     try {
       let url = `${BACKEND_URL}/emulation/history`;
-      if (profile?.hoc_sinh) {
-        url += `?lop_id=${profile.hoc_sinh.lop_id}`;
+      if (lopId) {
+        url += `?lop_id=${lopId}`;
       }
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -101,13 +128,19 @@ export default function Grading() {
     } catch (err) {
       console.error(err);
     }
-  }, [profile, token, BACKEND_URL]);
+  }, [selectedClassId, profile, token, BACKEND_URL]);
 
   useEffect(() => {
-    loadStudents();
+    loadClasses();
     loadCriteria();
-    loadHistory();
-  }, [loadStudents, loadCriteria, loadHistory]);
+  }, [loadClasses, loadCriteria]);
+
+  useEffect(() => {
+    if (selectedClassId || profile?.hoc_sinh?.lop_id) {
+      loadStudents();
+      loadHistory();
+    }
+  }, [selectedClassId, profile, loadStudents, loadHistory]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,6 +242,28 @@ export default function Grading() {
           )}
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
+            
+            {/* Bộ chọn Lớp học dành riêng cho Admin */}
+            {profile?.vai_tro_he_thong === 'Admin' && (
+              <div className="form-group">
+                <label className="form-label">Chọn lớp học cần chấm điểm</label>
+                <select
+                  className="form-select"
+                  value={selectedClassId || ''}
+                  onChange={(e) => {
+                    setSelectedClassId(Number(e.target.value));
+                    setSelectedStudent(''); // Reset học sinh
+                  }}
+                >
+                  {classes.map((c) => (
+                    <option key={c.lop_id} value={c.lop_id}>
+                      Lớp {c.ten_lop}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Chọn học sinh */}
             <div className="form-group">
               <label className="form-label">1. Tìm & Chọn học sinh</label>
@@ -233,7 +288,7 @@ export default function Grading() {
                 <option value="">-- Chọn học sinh từ danh sách --</option>
                 {filteredStudents.map((s) => (
                   <option key={s.hoc_sinh_id} value={s.hoc_sinh_id}>
-                    {s.ho_ten} ({s.ten_to || `Tổ ${s.to_id}`})
+                    {s.ho_ten} ({s.ten_to || `Tổ ${s.to_id || 1}`})
                   </option>
                 ))}
               </select>
@@ -310,7 +365,7 @@ export default function Grading() {
         {/* Lịch sử tự chấm của lớp */}
         <div className="glass-card" style={{ padding: 'var(--spacing-6)' }}>
           <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, marginBottom: 'var(--spacing-5)' }}>
-            Lịch Sử Chấm Của Lớp Trong Tuần
+            Lịch Sử Chấm Trong Tuần
           </h3>
 
           <div className="table-wrapper" style={{ maxHeight: '420px', overflowY: 'auto' }}>
@@ -356,7 +411,7 @@ export default function Grading() {
                 {history.length === 0 && (
                   <tr>
                     <td colSpan={5} style={{ textAlign: 'center', padding: '32px' }}>
-                      Chưa chấm điểm nào cho lớp trong tuần này.
+                      Chưa có điểm nào được ghi nhận trong tuần này.
                     </td>
                   </tr>
                 )}
