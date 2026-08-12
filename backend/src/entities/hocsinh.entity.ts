@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
-import { NienHoc } from './nienhoc.entity';
 import { To } from './to.entity';
+import { Lop } from './lop.entity';
 import { LichSuChamDiem } from './lichsu-chamdiem.entity';
 import { TongHopTuan } from './tonghop-tuan.entity';
 import { TongHopThang } from './tonghop-thang.entity';
@@ -31,6 +31,10 @@ export class HocSinh {
     default: 'HocSinh',
   })
   vai_tro_thi_dua: 'LopTruong' | 'LopPho' | 'ToTruong' | 'ToPho' | 'HocSinh';
+
+  @ManyToOne(() => Lop, { nullable: false })
+  @JoinColumn({ name: 'lop_id' })
+  lop: Lop;
 
   @ManyToOne(() => To, (to) => to.hoc_sinh, { nullable: true })
   @JoinColumn({ name: 'to_id' })

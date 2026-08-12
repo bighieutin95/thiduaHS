@@ -25,10 +25,10 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
     if (profile?.vai_tro_he_thong === 'Admin') return 'Quản trị viên';
     const vt = profile?.hoc_sinh?.vai_tro_thi_dua;
     switch (vt) {
-      case 'LopTruong': return `Lớp trưởng ${profile.hoc_sinh?.ten_lop || ''}`;
-      case 'LopPho': return `Lớp phó ${profile.hoc_sinh?.ten_lop || ''}`;
-      case 'ToTruong': return `Tổ trưởng ${profile.hoc_sinh?.ten_to || ''} - ${profile.hoc_sinh?.ten_lop || ''}`;
-      case 'ToPho': return `Tổ phó ${profile.hoc_sinh?.ten_to || ''} - ${profile.hoc_sinh?.ten_lop || ''}`;
+      case 'LopTruong': return `Lớp trưởng ${profile?.hoc_sinh?.ten_lop || ''}`;
+      case 'LopPho': return `Lớp phó ${profile?.hoc_sinh?.ten_lop || ''}`;
+      case 'ToTruong': return `Tổ trưởng ${profile?.hoc_sinh?.ten_to || ''} - ${profile?.hoc_sinh?.ten_lop || ''}`;
+      case 'ToPho': return `Tổ phó ${profile?.hoc_sinh?.ten_to || ''} - ${profile?.hoc_sinh?.ten_lop || ''}`;
       default: return `Học sinh ${profile?.hoc_sinh?.ten_lop || ''}`;
     }
   };

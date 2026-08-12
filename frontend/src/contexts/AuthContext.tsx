@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 // --- Kiểu dữ liệu ---
@@ -11,6 +11,7 @@ interface HocSinhInfo {
   ma_hoc_sinh: string | null;
   vai_tro_thi_dua: 'LopTruong' | 'LopPho' | 'ToTruong' | 'ToPho' | 'HocSinh';
   ten_to: string | null;
+  ten_lop: string | null;
 }
 
 interface UserProfile {

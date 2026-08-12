@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Award, Calendar, FileSpreadsheet, Medal, ShieldAlert } from 'lucide-react';
+import { Calendar, Medal, ShieldAlert } from 'lucide-react';
 
 interface WeeklyReport {
   tong_hop_tuan_id: number;

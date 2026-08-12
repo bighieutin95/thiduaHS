@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Check, Search, Calendar, FileText, XCircle } from 'lucide-react';
+import { Plus, Search, Calendar, FileText, XCircle } from 'lucide-react';
 
 interface HocSinh {
   hoc_sinh_id: number;

@@ -30,7 +30,7 @@ export class AuthService {
     // Tìm thông tin học sinh trong td_hocsinh theo email (nếu có)
     const hocSinh = await this.hocSinhRepo.findOne({
       where: { email },
-      relations: ['to', 'to.lop'],
+      relations: ['to', 'lop'],
     });
 
     return {
@@ -48,6 +48,7 @@ export class AuthService {
             ma_hoc_sinh: hocSinh.ma_hoc_sinh,
             vai_tro_thi_dua: hocSinh.vai_tro_thi_dua,
             ten_to: hocSinh.to?.ten_to || null,
+            ten_lop: hocSinh.lop?.ten_lop || null,
           }
         : null,
     };

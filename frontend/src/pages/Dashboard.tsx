@@ -13,7 +13,7 @@ interface LichSu {
 }
 
 export default function Dashboard() {
-  const { profile, isAdmin, isCanBoLop, isToTruong } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [history, setHistory] = useState<LichSu[]>([]);
   const [stats, setStats] = useState({
     diemHienTai: 100,
