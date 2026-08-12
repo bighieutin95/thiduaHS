@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Grading from './pages/Grading';
 import Reports from './pages/Reports';
 import RoleConfig from './pages/RoleConfig';
+import StudentsPage from './pages/StudentsPage';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="grading" element={<Grading />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="students" element={<StudentsPage />} />
             <Route path="role-config" element={<RoleConfig />} />
           </Route>
 

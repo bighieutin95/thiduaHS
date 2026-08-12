@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LayoutDashboard, Award, FileSpreadsheet, Settings, X, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, Award, FileSpreadsheet, Settings, X, GraduationCap, Users } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -76,6 +76,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <FileSpreadsheet size={18} />
             <span>Báo cáo tổng kết</span>
           </NavLink>
+
+          {(isAdmin || isCanBoLop) && (
+            <NavLink
+              to="/students"
+              onClick={onClose}
+              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            >
+              <Users size={18} />
+              <span>Quản lý học sinh</span>
+            </NavLink>
+          )}
 
           {isAdmin && (
             <NavLink
