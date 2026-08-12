@@ -37,6 +37,11 @@ import { BaoCaoModule } from './modules/bao-cao/bao-cao.module';
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
         ssl: { rejectUnauthorized: false },
+        extra: {
+          ssl: {
+            rejectUnauthorized: false,
+          },
+        },
         entities: [
           NguoiDung, NienHoc, HocKy, Lop, To, HocSinh,
           DanhMucTieuChi, LichSuChamDiem, TongHopTuan, TongHopThang, PhanQuyen,
