@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Users, UserPlus, FileSpreadsheet, Search, Edit, Trash2, 
-  X, CheckCircle, ShieldAlert, Sparkles, Save
+  X, CheckCircle, ShieldAlert, Sparkles, Save, User, IdCard, Mail, Award, AlertCircle
 } from 'lucide-react';
 
 interface Lop {
@@ -77,7 +77,6 @@ export default function StudentsPage() {
         const data = await res.json();
         setClasses(data);
         if (data.length > 0) {
-          // Ưu tiên chọn lớp của học sinh đang đăng nhập
           const userClassId = profile?.hoc_sinh?.lop_id || data[0].lop_id;
           setSelectedClassId(userClassId);
         }
@@ -165,7 +164,7 @@ export default function StudentsPage() {
       }
 
       if (res.ok) {
-        setMessage({ type: 'success', text: editingStudent ? 'Đã cập nhật học sinh' : 'Đã thêm mới học sinh thành công!' });
+        setMessage({ type: 'success', text: editingStudent ? 'Đã cập nhật thông tin học sinh!' : 'Đã thêm mới học sinh thành công!' });
         setIsModalOpen(false);
         fetchStudents(selectedClassId);
       } else {
@@ -179,7 +178,7 @@ export default function StudentsPage() {
 
   // Xóa học sinh
   const handleDeleteStudent = async (id: number) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa học sinh này khỏi lớp?')) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa học sinh này khỏi danh sách lớp?')) return;
     try {
       const res = await fetch(`${BACKEND_URL}/students/${id}`, {
         method: 'DELETE',
@@ -200,7 +199,6 @@ export default function StudentsPage() {
 
     const lines = importText.split('\n').filter((l) => l.trim().length > 0);
     const parsedList = lines.map((line) => {
-      // Hỗ trợ phân cách dấu phẩy, dấu chấm phẩy hoặc phím Tab (Excel copy)
       const parts = line.split(/[,;\t]/).map((p) => p.trim());
       return {
         ho_ten: parts[0] || 'Học sinh mới',
@@ -261,24 +259,24 @@ export default function StudentsPage() {
   };
 
   return (
-    <div className="container fade-in" style={{ padding: '2rem 1rem' }}>
+    <div className="container fade-in" style={{ padding: '1.5rem 0.8rem' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <Users style={{ color: '#60a5fa' }} /> Quản Lý Danh Sách Học Sinh
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <Users style={{ color: 'var(--color-primary)' }} /> Quản Lý Danh Sách Học Sinh
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.95rem', marginTop: '0.2rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.2rem' }}>
             Cập nhật danh sách học sinh, phân Tổ thi đua và gán chức năng cho Ban cán sự lớp
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.8rem' }}>
-          <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)}>
-            <FileSpreadsheet size={18} /> Nhập Hàng Loạt (Excel)
+        <div style={{ display: 'flex', gap: '0.6rem', width: '100%', maxWidth: '350px' }}>
+          <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)} style={{ flex: 1, justifyContent: 'center' }}>
+            <FileSpreadsheet size={18} /> Excel Import
           </button>
-          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-            <UserPlus size={18} /> Thêm Học Sinh
+          <button className="btn btn-primary" onClick={() => handleOpenModal()} style={{ flex: 1, justifyContent: 'center' }}>
+            <UserPlus size={18} /> Thêm Mới
           </button>
         </div>
       </div>
@@ -286,9 +284,9 @@ export default function StudentsPage() {
       {/* Thông báo Alert */}
       {message && (
         <div style={{
-          padding: '1rem',
-          borderRadius: '12px',
-          marginBottom: '1.5rem',
+          padding: '0.8rem 1rem',
+          borderRadius: 'var(--border-radius-md)',
+          marginBottom: '1.2rem',
           background: message.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
           border: `1px solid ${message.type === 'success' ? '#10b981' : '#ef4444'}`,
           color: message.type === 'success' ? '#34d399' : '#f87171',
@@ -296,7 +294,7 @@ export default function StudentsPage() {
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>
             {message.type === 'success' ? <CheckCircle size={18} /> : <ShieldAlert size={18} />}
             {message.text}
           </span>
@@ -307,11 +305,11 @@ export default function StudentsPage() {
       )}
 
       {/* Bộ lọc & Tìm kiếm Toolbar */}
-      <div className="card" style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'center' }}>
-        <div>
-          <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>Lớp học</label>
+      <div className="card" style={{ marginBottom: '1.2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.8rem', alignItems: 'center', padding: '1rem' }}>
+        <div className="form-group">
+          <label className="form-label">Lớp học</label>
           <select 
-            className="input" 
+            className="form-select" 
             value={selectedClassId || ''} 
             onChange={(e) => setSelectedClassId(Number(e.target.value))}
           >
@@ -321,10 +319,10 @@ export default function StudentsPage() {
           </select>
         </div>
 
-        <div>
-          <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>Lọc theo Tổ</label>
+        <div className="form-group">
+          <label className="form-label">Lọc theo Tổ</label>
           <select 
-            className="input" 
+            className="form-select" 
             value={selectedToId} 
             onChange={(e) => setSelectedToId(e.target.value)}
           >
@@ -336,34 +334,34 @@ export default function StudentsPage() {
           </select>
         </div>
 
-        <div>
-          <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>Tìm kiếm</label>
+        <div className="form-group">
+          <label className="form-label">Tìm kiếm</label>
           <div style={{ position: 'relative' }}>
             <input 
               type="text" 
-              className="input" 
-              placeholder="Tìm theo tên hoặc mã HS..." 
+              className="form-input" 
+              placeholder="Tên hoặc mã HS..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ paddingLeft: '2.5rem' }}
             />
-            <Search size={16} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+            <Search size={16} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           </div>
         </div>
       </div>
 
-      {/* Bảng Danh sách Học sinh */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      {/* Bảng Danh sách Học sinh (Desktop View) */}
+      <div className="card desktop-table-view" style={{ padding: 0, overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: '3rem', textAlign: 'center' }}>
             <div className="spinner"></div>
-            <p style={{ marginTop: '1rem', color: 'var(--color-text-muted)' }}>Đang tải danh sách học sinh...</p>
+            <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>Đang tải danh sách học sinh...</p>
           </div>
         ) : filteredStudents.length === 0 ? (
           <div style={{ padding: '3rem', textAlign: 'center' }}>
-            <Sparkles size={40} style={{ color: 'var(--color-text-muted)', marginBottom: '1rem' }} />
-            <h3 style={{ color: 'white', marginBottom: '0.5rem' }}>Chưa có học sinh nào</h3>
-            <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>Hãy bấm nút "Thêm Học Sinh" hoặc "Nhập Hàng Loạt" để cập nhật danh sách lớp</p>
+            <Sparkles size={40} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
+            <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Chưa có học sinh nào trong lớp</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Hãy bấm nút "Thêm Mới" hoặc "Excel Import" để cập nhật danh sách học sinh</p>
             <button className="btn btn-primary" onClick={() => handleOpenModal()}>
               <UserPlus size={18} /> Thêm ngay
             </button>
@@ -385,24 +383,26 @@ export default function StudentsPage() {
               <tbody>
                 {filteredStudents.map((hs, index) => (
                   <tr key={hs.hoc_sinh_id}>
-                    <td style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>{index + 1}</td>
-                    <td style={{ fontWeight: 600, color: 'white' }}>{hs.ho_ten}</td>
-                    <td><code style={{ background: 'rgba(255,255,255,0.08)', padding: '0.2rem 0.4rem', borderRadius: '4px', color: '#60a5fa' }}>{hs.ma_hoc_sinh || 'N/A'}</code></td>
-                    <td><span className="badge badge-blue">{hs.to?.ten_to || `Tổ ${hs.to_id || 1}`}</span></td>
+                    <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{index + 1}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{hs.ho_ten}</td>
+                    <td><code style={{ background: 'var(--bg-muted)', padding: '0.2rem 0.5rem', borderRadius: '4px', color: 'var(--color-primary)', fontWeight: 600 }}>{hs.ma_hoc_sinh || 'N/A'}</code></td>
+                    <td><span className="badge badge-primary">{hs.to?.ten_to || `Tổ ${hs.to_id || 1}`}</span></td>
                     <td>{getRoleBadge(hs.vai_tro_thi_dua)}</td>
-                    <td style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{hs.email || '—'}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{hs.email || '—'}</td>
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                         <button 
                           onClick={() => handleOpenModal(hs)}
-                          style={{ background: 'rgba(59,130,246,0.15)', border: 'none', color: '#60a5fa', padding: '0.4rem', borderRadius: '6px', cursor: 'pointer' }}
+                          className="btn btn-sm btn-secondary"
+                          style={{ padding: '0.4rem', color: 'var(--color-primary)' }}
                           title="Sửa thông tin"
                         >
                           <Edit size={16} />
                         </button>
                         <button 
                           onClick={() => handleDeleteStudent(hs.hoc_sinh_id)}
-                          style={{ background: 'rgba(239,68,68,0.15)', border: 'none', color: '#f87171', padding: '0.4rem', borderRadius: '6px', cursor: 'pointer' }}
+                          className="btn btn-sm btn-secondary"
+                          style={{ padding: '0.4rem', color: 'var(--color-danger)' }}
                           title="Xóa học sinh"
                         >
                           <Trash2 size={16} />
@@ -417,27 +417,122 @@ export default function StudentsPage() {
         )}
       </div>
 
-      {/* MODAL THÊM / SỬA HỌC SINH */}
+      {/* MOBILE CARDS VIEW (Chỉ hiển thị trên Điện Thoại) */}
+      <div className="mobile-student-grid">
+        {loading ? (
+          <div style={{ padding: '2rem', textAlign: 'center' }}>
+            <div className="spinner"></div>
+          </div>
+        ) : filteredStudents.length === 0 ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Chưa có học sinh nào trong lớp. Bấm nút Thêm Mới để bắt đầu.
+          </div>
+        ) : (
+          filteredStudents.map((hs, idx) => (
+            <div key={hs.hoc_sinh_id} className="mobile-student-card">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                <div style={{
+                  width: '40px', height: '40px', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
+                  color: 'white', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.95rem'
+                }}>
+                  {idx + 1}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, color: 'white', fontSize: '1rem' }}>{hs.ho_ten}</div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.2rem' }}>
+                    <span className="badge badge-primary" style={{ fontSize: '0.7rem' }}>{hs.to?.ten_to || `Tổ ${hs.to_id || 1}`}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{hs.ma_hoc_sinh || ''}</span>
+                  </div>
+                  <div style={{ marginTop: '0.3rem' }}>{getRoleBadge(hs.vai_tro_thi_dua)}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  onClick={() => handleOpenModal(hs)}
+                  style={{
+                    width: '40px', height: '40px', borderRadius: '12px',
+                    background: 'rgba(59, 130, 246, 0.2)', border: 'none',
+                    color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}
+                >
+                  <Edit size={18} />
+                </button>
+                <button 
+                  onClick={() => handleDeleteStudent(hs.hoc_sinh_id)}
+                  style={{
+                    width: '40px', height: '40px', borderRadius: '12px',
+                    background: 'rgba(239, 68, 68, 0.2)', border: 'none',
+                    color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* MODAL THÊM / SỬA HỌC SINH (MOBILE BOTTOM SHEET & DESKTOP CENTERED) */}
       {isModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px)',
-          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-        }}>
-          <div className="card fade-in" style={{ width: '100%', maxWidth: '500px', margin: '1rem', background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ color: 'white', margin: 0 }}>{editingStudent ? 'Chỉnh Sửa Học Sinh' : 'Thêm Học Sinh Mới'}</h3>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
-                <X size={20} />
+        <div className="mobile-modal-overlay">
+          <div className="card fade-in mobile-modal-content" style={{ 
+            width: '100%', maxWidth: '520px', 
+            background: 'var(--bg-surface)', 
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-lg)',
+            padding: '1.5rem'
+          }}>
+            {/* Header Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                <div style={{ 
+                  width: '42px', height: '42px', borderRadius: '12px', 
+                  background: 'rgba(var(--color-primary-rgb), 0.12)', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--color-primary)'
+                }}>
+                  {editingStudent ? <Edit size={22} /> : <UserPlus size={22} />}
+                </div>
+                <div>
+                  <h3 style={{ 
+                    fontSize: '1.25rem', fontWeight: 800, margin: 0,
+                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
+                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
+                  }}>
+                    {editingStudent ? 'Chỉnh Sửa Học Sinh' : 'Thêm Học Sinh Mới'}
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                    {editingStudent ? 'Cập nhật thông tin cá nhân và vai trò thi đua' : 'Nhập thông tin cá nhân của học sinh vào lớp học'}
+                  </p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setIsModalOpen(false)} 
+                style={{ 
+                  background: 'var(--bg-muted)', border: 'none', 
+                  color: 'var(--text-muted)', cursor: 'pointer',
+                  width: '32px', height: '32px', borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}
+              >
+                <X size={18} />
               </button>
             </div>
 
+            {/* Form Input */}
             <form onSubmit={handleSaveStudent}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>Họ và Tên *</label>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <User size={15} style={{ color: 'var(--color-primary)' }} /> Họ và Tên *
+                </label>
                 <input 
                   type="text" 
-                  className="input" 
+                  className="form-input" 
                   required 
                   placeholder="Ví dụ: Nguyễn Văn An"
                   value={formData.ho_ten}
@@ -445,22 +540,26 @@ export default function StudentsPage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>Mã Học Sinh</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <IdCard size={15} style={{ color: 'var(--color-primary)' }} /> Mã Học Sinh
+                  </label>
                   <input 
                     type="text" 
-                    className="input" 
+                    className="form-input" 
                     placeholder="HS001"
                     value={formData.ma_hoc_sinh}
                     onChange={(e) => setFormData({ ...formData, ma_hoc_sinh: e.target.value })}
                   />
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>Phân Tổ</label>
+                <div className="form-group">
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Users size={15} style={{ color: 'var(--color-primary)' }} /> Phân Tổ
+                  </label>
                   <select 
-                    className="input" 
+                    className="form-select" 
                     value={formData.to_id}
                     onChange={(e) => setFormData({ ...formData, to_id: e.target.value })}
                   >
@@ -472,35 +571,40 @@ export default function StudentsPage() {
                 </div>
               </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>Email</label>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Mail size={15} style={{ color: 'var(--color-primary)' }} /> Email kết nối
+                </label>
                 <input 
                   type="email" 
-                  className="input" 
+                  className="form-input" 
                   placeholder="hocsinh@thiduahs.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
 
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.4rem' }}>Vai Trò Thi Đua</label>
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Award size={15} style={{ color: 'var(--color-primary)' }} /> Vai Trò Thi Đua
+                </label>
                 <select 
-                  className="input" 
+                  className="form-select" 
                   value={formData.vai_tro_thi_dua}
                   onChange={(e) => setFormData({ ...formData, vai_tro_thi_dua: e.target.value as any })}
                 >
-                  <option value="HocSinh">👦 Học Sinh</option>
-                  <option value="LopTruong">🎓 Lớp Trưởng</option>
-                  <option value="LopPho">📘 Lớp Phó</option>
-                  <option value="ToTruong">🚩 Tổ Trưởng</option>
-                  <option value="ToPho">🚩 Tổ Phó</option>
+                  <option value="HocSinh">👦 Học Sinh (Thành viên)</option>
+                  <option value="LopTruong">🎓 Lớp Trưởng (Quyền chấm & duyệt)</option>
+                  <option value="LopPho">📘 Lớp Phó (Ban cán sự lớp)</option>
+                  <option value="ToTruong">🚩 Tổ Trưởng (Quản lý tổ)</option>
+                  <option value="ToPho">🚩 Tổ Phó (Phó tổ)</option>
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.8rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Hủy</button>
-                <button type="submit" className="btn btn-primary"><Save size={18} /> Lưu Thông Tin</button>
+              {/* Footer Modal Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.8rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Hủy bỏ</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}><Save size={18} /> {editingStudent ? 'Cập Nhật' : 'Tạo Mới'}</button>
               </div>
             </form>
           </div>
@@ -509,47 +613,88 @@ export default function StudentsPage() {
 
       {/* MODAL IMPORT HÀNG LOẠT */}
       {isImportModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px)',
-          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-        }}>
-          <div className="card fade-in" style={{ width: '100%', maxWidth: '650px', margin: '1rem', background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileSpreadsheet size={20} style={{ color: '#10b981' }} /> Nhập Danh Sách Học Sinh Hàng Loạt
-              </h3>
-              <button onClick={() => setIsImportModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
-                <X size={20} />
+        <div className="mobile-modal-overlay">
+          <div className="card fade-in mobile-modal-content" style={{ 
+            width: '100%', maxWidth: '680px', 
+            background: 'var(--bg-surface)', 
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-lg)',
+            padding: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                <div style={{ 
+                  width: '42px', height: '42px', borderRadius: '12px', 
+                  background: 'rgba(16, 185, 129, 0.12)', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#10b981'
+                }}>
+                  <FileSpreadsheet size={22} />
+                </div>
+                <div>
+                  <h3 style={{ 
+                    fontSize: '1.25rem', fontWeight: 800, margin: 0,
+                    background: 'linear-gradient(135deg, #10b981, #06b6d4)',
+                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
+                  }}>
+                    Nhập Danh Sách Học Sinh Hàng Loạt
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                    Nhập nhiều học sinh từ file Excel hoặc văn bản dán trực tiếp
+                  </p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setIsImportModalOpen(false)} 
+                style={{ 
+                  background: 'var(--bg-muted)', border: 'none', 
+                  color: 'var(--text-muted)', cursor: 'pointer',
+                  width: '32px', height: '32px', borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}
+              >
+                <X size={18} />
               </button>
             </div>
 
-            <p style={{ fontSize: '0.88rem', color: 'var(--color-text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
-              Bạn có thể copy danh sách từ file Excel/Word và dán vào ô bên dưới. Mỗi dòng là thông tin 1 học sinh theo định dạng:<br />
-              <code style={{ background: 'rgba(255,255,255,0.1)', color: '#60a5fa', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
-                Họ và Tên, Mã Học Sinh, Số Tổ (1-4), Email (không bắt buộc)
-              </code>
-            </p>
+            <div style={{ 
+              background: 'rgba(var(--color-primary-rgb), 0.08)', 
+              border: '1px dashed var(--color-primary)', 
+              borderRadius: 'var(--border-radius-md)', 
+              padding: '0.8rem 1rem', 
+              marginBottom: '1rem',
+              display: 'flex', alignItems: 'flex-start', gap: '0.6rem',
+              fontSize: '0.82rem', color: 'var(--text-secondary)'
+            }}>
+              <AlertCircle size={18} style={{ color: 'var(--color-primary)', flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <strong>Mẫu nhập:</strong> Copy các dòng từ Excel hoặc dán văn bản theo cấu trúc:<br />
+                <code style={{ background: 'var(--bg-muted)', padding: '0.1rem 0.4rem', borderRadius: '4px', color: 'var(--color-primary)', fontWeight: 600 }}>
+                  Họ và Tên, Mã Học Sinh, Số Tổ (1-4), Email
+                </code>
+              </div>
+            </div>
 
-            <div style={{ marginBottom: '1rem' }}>
+            <div className="form-group" style={{ marginBottom: '1.2rem' }}>
               <textarea 
-                className="input" 
-                rows={8}
-                placeholder={`Ví dụ:\nNguyễn Văn An, HS001, 1, an@gmail.com\nTrần Thị Bích, HS002, 1, bich@gmail.com\nLê Hoàng Cường, HS003, 2, cuong@gmail.com`}
+                className="form-textarea" 
+                rows={6}
+                placeholder={`Dán danh sách vào đây. Ví dụ:\nNguyễn Văn An, HS001, 1, an@gmail.com\nTrần Thị Bích, HS002, 1, bich@gmail.com`}
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
-                style={{ fontFamily: 'monospace', fontSize: '0.9rem', lineHeight: 1.4 }}
+                style={{ fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.4 }}
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                {importText.trim() ? `Đã nhận diện: ${importText.split('\n').filter(l => l.trim()).length} học sinh` : ''}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', gap: '0.8rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                {importText.trim() ? `✨ Đã nhận diện: ${importText.split('\n').filter(l => l.trim()).length} dòng` : ''}
               </span>
-              <div style={{ display: 'flex', gap: '0.8rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsImportModalOpen(false)}>Hủy</button>
-                <button type="button" className="btn btn-primary" onClick={handleImportList} disabled={!importText.trim()}>
-                  <Sparkles size={18} /> Tiến Hành Nhập Hàng Loạt
+              <div style={{ display: 'flex', gap: '0.6rem', width: '100%', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsImportModalOpen(false)}>Hủy bỏ</button>
+                <button type="button" className="btn btn-success" onClick={handleImportList} disabled={!importText.trim()}>
+                  <Sparkles size={18} /> Nhập Hàng Loạt
                 </button>
               </div>
             </div>

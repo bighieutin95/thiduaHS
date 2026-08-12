@@ -3,8 +3,10 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
+import BottomNav from './BottomNav';
 import '../styles/globals.css';
 import '../styles/layout.css';
+import '../styles/mobile-app.css';
 
 export default function Layout() {
   const { session, isLoading } = useAuth();
@@ -39,6 +41,9 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Bottom Navigation cho di động */}
+      <BottomNav />
     </div>
   );
 }
