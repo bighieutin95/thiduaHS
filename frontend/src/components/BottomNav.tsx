@@ -4,9 +4,11 @@ import { LayoutDashboard, Award, FileSpreadsheet, Users, Settings } from 'lucide
 import '../styles/mobile-app.css';
 
 export default function BottomNav() {
-  const { isAdmin, isCanBoLop, isToTruong } = useAuth();
-  const canGrade = isAdmin || isCanBoLop || isToTruong;
-  const canManageStudents = isAdmin || isCanBoLop;
+  const { profile, isAdmin, isCanBoLop, isToTruong } = useAuth();
+  const isGvcn = !!profile?.gvcn_lop;
+  const canGrade = isAdmin || isCanBoLop || isToTruong || isGvcn;
+  const canManageStudents = isAdmin || isCanBoLop || isGvcn;
+  const canManagePermissions = isAdmin || isGvcn;
 
   return (
     <nav className="bottom-nav">
@@ -54,7 +56,7 @@ export default function BottomNav() {
         <span className="bottom-nav-label">Báo cáo</span>
       </NavLink>
 
-      {isAdmin && (
+      {canManagePermissions && (
         <NavLink
           to="/role-config"
           className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}

@@ -62,14 +62,17 @@ export default function LoginPage() {
           <button className="btn btn-sm btn-secondary" onClick={() => signInMock('admin@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}>
             🔑 Admin
           </button>
+          <button className="btn btn-sm btn-secondary" onClick={() => signInMock('gvcn10a1@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}>
+            💼 GVCN (10A1)
+          </button>
           <button className="btn btn-sm btn-secondary" onClick={() => signInMock('loptruong@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}>
             🎓 Lớp Trưởng
           </button>
           <button className="btn btn-sm btn-secondary" onClick={() => signInMock('totruong1@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}>
             🚩 Tổ Trưởng
           </button>
-          <button className="btn btn-sm btn-secondary" onClick={() => signInMock('hocsinh1@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}>
-            👦 Học Sinh
+          <button className="btn btn-sm btn-secondary" onClick={() => signInMock('hocsinh1@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: 'white', borderColor: 'rgba(255,255,255,0.2)', gridColumn: 'span 2' }}>
+            👦 Học Sinh (Xem điểm cá nhân & cả lớp)
           </button>
         </div>
 

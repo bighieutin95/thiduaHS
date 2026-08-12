@@ -61,6 +61,43 @@ export class ChamDiemService {
       throw new BadRequestException('Tuần học đã bị chốt lúc 22h00 thứ Sáu. Không thể chấm điểm cho ngày này.');
     }
 
+    // 1. Kiểm tra thông tin người chấm
+    const nguoiCham = await this.nguoiDungRepo.findOne({ where: { user_id: userId } });
+    if (!nguoiCham) throw new NotFoundException('Không tìm thấy thông tin người dùng.');
+
+    // 2. Tìm học sinh bị chấm điểm
+    const hocSinhBiCham = await this.hocSinhRepo.findOne({ where: { hoc_sinh_id: body.hoc_sinh_id } });
+    if (!hocSinhBiCham) throw new NotFoundException('Không tìm thấy học sinh bị chấm điểm.');
+
+    // 3. Kiểm tra phân quyền chấm điểm chặt chẽ
+    if (nguoiCham.vai_tro_he_thong !== 'Admin') {
+      // Kiểm tra xem email người chấm có phải GVCN của lớp này không
+      const lopGvcn = await this.hocSinhRepo.query(
+        "SELECT lop_id FROM td_lop WHERE gvcn_email = $1 AND lop_id = $2",
+        [nguoiCham.email, hocSinhBiCham.lop_id]
+      );
+      
+      const isGvcnCuaLop = lopGvcn.length > 0;
+
+      if (!isGvcnCuaLop) {
+        // Tìm xem người chấm có phải học sinh/ban cán sự cùng lớp không
+        const hocSinhCham = await this.hocSinhRepo.findOne({ where: { email: nguoiCham.email } });
+        if (!hocSinhCham) {
+          throw new ForbiddenException('Bạn không có quyền chấm điểm thi đua cho lớp này.');
+        }
+
+        // Chặn học sinh thường chấm điểm
+        if (hocSinhCham.vai_tro_thi_dua === 'HocSinh') {
+          throw new ForbiddenException('Học sinh thường không có quyền chấm điểm thi đua.');
+        }
+
+        // Chặn chấm chéo lớp
+        if (hocSinhCham.lop_id !== hocSinhBiCham.lop_id) {
+          throw new ForbiddenException('Bạn chỉ được phép chấm điểm cho học sinh trong lớp của mình.');
+        }
+      }
+    }
+
     const tieuChi = await this.tieuChiRepo.findOne({ where: { tieu_chi_id: body.tieu_chi_id } });
     if (!tieuChi) throw new NotFoundException('Không tìm thấy tiêu chí thi đua.');
 

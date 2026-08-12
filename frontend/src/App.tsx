@@ -7,6 +7,7 @@ import Grading from './pages/Grading';
 import Reports from './pages/Reports';
 import RoleConfig from './pages/RoleConfig';
 import StudentsPage from './pages/StudentsPage';
+import ClassesPage from './pages/ClassesPage';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="classes" element={<ClassesPage />} />
             <Route path="grading" element={<Grading />} />
             <Route path="reports" element={<Reports />} />
             <Route path="students" element={<StudentsPage />} />

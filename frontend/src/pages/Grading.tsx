@@ -63,7 +63,7 @@ export default function Grading() {
         const data = await res.json();
         setClasses(data);
         if (data.length > 0) {
-          const userClassId = profile?.hoc_sinh?.lop_id || data[0].lop_id;
+          const userClassId = profile?.gvcn_lop?.lop_id || profile?.hoc_sinh?.lop_id || data[0].lop_id;
           setSelectedClassId(userClassId);
         }
       }

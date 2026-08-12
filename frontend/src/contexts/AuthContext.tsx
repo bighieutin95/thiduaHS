@@ -21,6 +21,7 @@ interface UserProfile {
   avatar_url: string | null;
   vai_tro_he_thong: 'Admin' | 'User';
   hoc_sinh: HocSinhInfo | null;
+  gvcn_lop: { lop_id: number; ten_lop: string } | null;
 }
 
 interface AuthContextType {
@@ -92,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               case 'loptruong@thiduahs.com': return '00000000-0000-4000-a000-000000000002';
               case 'totruong1@thiduahs.com': return '00000000-0000-4000-a000-000000000003';
               case 'hocsinh1@thiduahs.com': return '00000000-0000-4000-a000-000000000004';
+              case 'gvcn10a1@thiduahs.com': return '00000000-0000-4000-a000-000000000005';
               default: return '11111111-1111-4111-a111-111111111111';
             }
           };
@@ -151,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             case 'loptruong@thiduahs.com': return '00000000-0000-4000-a000-000000000002';
             case 'totruong1@thiduahs.com': return '00000000-0000-4000-a000-000000000003';
             case 'hocsinh1@thiduahs.com': return '00000000-0000-4000-a000-000000000004';
+            case 'gvcn10a1@thiduahs.com': return '00000000-0000-4000-a000-000000000005';
             default: return '11111111-1111-4111-a111-111111111111';
           }
         };

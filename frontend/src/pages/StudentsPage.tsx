@@ -77,7 +77,7 @@ export default function StudentsPage() {
         const data = await res.json();
         setClasses(data);
         if (data.length > 0) {
-          const userClassId = profile?.hoc_sinh?.lop_id || data[0].lop_id;
+          const userClassId = profile?.gvcn_lop?.lop_id || profile?.hoc_sinh?.lop_id || data[0].lop_id;
           setSelectedClassId(userClassId);
         }
       }
@@ -312,6 +312,7 @@ export default function StudentsPage() {
             className="form-select" 
             value={selectedClassId || ''} 
             onChange={(e) => setSelectedClassId(Number(e.target.value))}
+            disabled={profile?.vai_tro_he_thong !== 'Admin'}
           >
             {classes.map((c) => (
               <option key={c.lop_id} value={c.lop_id}>Lớp {c.ten_lop}</option>

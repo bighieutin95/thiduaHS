@@ -9,12 +9,16 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { profile, isAdmin, isCanBoLop, isToTruong } = useAuth();
+  const isGvcn = !!profile?.gvcn_lop;
 
-  // Kiểm tra xem user có quyền truy cập mục Chấm Điểm không
-  const canGrade = isAdmin || isCanBoLop || isToTruong;
+  // Kiểm tra quyền truy cập các tính năng
+  const canGrade = isAdmin || isCanBoLop || isToTruong || isGvcn;
+  const canManageStudents = isAdmin || isCanBoLop || isGvcn;
+  const canManagePermissions = isAdmin || isGvcn;
 
   const getRoleLabel = () => {
     if (profile?.vai_tro_he_thong === 'Admin') return 'Quản trị viên';
+    if (profile?.gvcn_lop) return `GVCN Lớp ${profile.gvcn_lop.ten_lop}`;
     const vt = profile?.hoc_sinh?.vai_tro_thi_dua;
     switch (vt) {
       case 'LopTruong': return 'Lớp trưởng';
@@ -57,6 +61,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <span>Tổng quan</span>
           </NavLink>
 
+          {isAdmin && (
+            <NavLink
+              to="/classes"
+              onClick={onClose}
+              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            >
+              <GraduationCap size={18} />
+              <span>Quản lý lớp học</span>
+            </NavLink>
+          )}
+
           {canGrade && (
             <NavLink
               to="/grading"
@@ -77,7 +92,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <span>Báo cáo tổng kết</span>
           </NavLink>
 
-          {(isAdmin || isCanBoLop) && (
+          {canManageStudents && (
             <NavLink
               to="/students"
               onClick={onClose}
@@ -88,7 +103,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </NavLink>
           )}
 
-          {isAdmin && (
+          {canManagePermissions && (
             <NavLink
               to="/role-config"
               onClick={onClose}

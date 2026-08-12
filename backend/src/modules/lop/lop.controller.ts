@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { LopService } from './lop.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
 
@@ -23,5 +23,17 @@ export class LopController {
   @Post()
   create(@Body() body: any) {
     return this.lopService.create(body);
+  }
+
+  /** PUT /api/classes/:id - Cập nhật lớp học (Admin only) */
+  @Put(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
+    return this.lopService.update(id, body);
+  }
+
+  /** DELETE /api/classes/:id - Xóa lớp học (Admin only) */
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.lopService.remove(id);
   }
 }

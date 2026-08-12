@@ -13,6 +13,12 @@ export class BaoCaoController {
     return this.baoCaoService.baoTuanTheoLop(+lopId, +tuanThu);
   }
 
+  /** GET /api/emulation/reports/realtime-weekly?lop_id=&tuan_thu= */
+  @Get('realtime-weekly')
+  realtimeWeekly(@Query('lop_id') lopId: string, @Query('tuan_thu') tuanThu: string) {
+    return this.baoCaoService.baoTuanRealtime(+lopId, +tuanThu);
+  }
+
   /** GET /api/emulation/reports/monthly?lop_id=&thang=&nam= */
   @Get('monthly')
   monthly(@Query('lop_id') lopId: string, @Query('thang') thang: string, @Query('nam') nam: string) {
