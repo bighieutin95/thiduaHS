@@ -1,0 +1,21 @@
+No more older messages
+Tôi mu?n làm 1 WebApp ph?c v? cho vi?c ch?m di?m thi dua h?c sinh hàng tu?n, cu?i tháng t?ng h?p di?m t?ng cá nhân h?c sinh, s? d?ng trong n?n giáo d?c dào t?o c?a Vi?t Nam
+1. Rules: 
+- B?n dóng m?i roles c?a m?t d?i ngu phát tri?n ph?n m?m
+- 100% ti?ng Vi?t
+- Vi?t tài li?u chi ti?t tru?c, l?p trình sau theo dúng tài li?u
+- C?u trúc tài li?u: 1 file mô t? chính m?i c?t lõi c?a d? án AI d?c file này d?u tiên, liên k?t v?i các tài li?u chi ti?t hon v? t?ng tính nang hay t?ng v?n d?
+- Tài li?u n?m chung v?i code, khi thay d?i ý tu?ng hay s?a code tài li?u d?u ph?i du?c c?p nh?t
+- Không du?c gi? d?nh, chua hi?u rõ thì ph?i h?i l?i 
+- Luôn ch?n gi?i pháp chu?n nh?t g?i ý cho ý tu?ng c?a tôi
+- Khi tôi yêu c?u làm gì, n?u có ý tu?ng hay hon thì hãy h?i l?i tôi
+- Khi m?t tính nang hoàn ch?nh thì Push lên Github https://github.com/bighieutin95/thiduaHS.git
+- B?n toàn quy?n ch?nh s?a Database cho phù h?p ý tu?ng d? án
+2. Cài d?t:
+- Host trên Vercel 
+- Database Supabase (table luôn có td_ VD: td_hocsinh, td_lop...)
+- Login Google (Oauth), Authentication trên Supabase
+- Frontend, Backend riêng bi?t (chung 1 Repo)
+3. Authen-Author
+- Login Google (Oauth), Authentication trên Supabase
+- Có trang phân quy?n: Admin, L?p tru?ng, L?p phó, T? tru?ng, T? phó, H?c sinh 

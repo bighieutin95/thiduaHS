@@ -1,0 +1,7 @@
+Authen-Author
+- Login Google (Oauth), Authentication trên Supabase
+- Có trang phân quyền: Admin, Lớp trưởng, Lớp phó, Tổ trưởng, Tổ phó, Học sinh 
+- Admin: Là GVCN, không cần quyền Ban giám hiệu/ Tổng phụ trách Đội / Trợ lý Thanh niên...
+- Cán bộ chấm thi đua: Ban cán sự lớp (Lớp trưởng, Lớp phó, Tổ trưởng, Tổ phó), không cần Sao đỏ/ Giáo viên trực tuần...
+- Dùng thang Điểm: 100 nhưng là số thực 1 chữ số thập phân.
+ 
