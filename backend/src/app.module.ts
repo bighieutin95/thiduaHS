@@ -35,7 +35,11 @@ import { BaoCaoModule } from './modules/bao-cao/bao-cao.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        url: config.get<string>('DATABASE_URL'),
+        host: 'aws-0-ap-southeast-1.pooler.supabase.com',
+        port: 5432,
+        username: 'postgres.lhqzllnnzhdktesjlgwq',
+        password: 'Hnth1979@#.Hi',
+        database: 'postgres',
         ssl: { rejectUnauthorized: false },
         extra: {
           ssl: {
@@ -46,8 +50,8 @@ import { BaoCaoModule } from './modules/bao-cao/bao-cao.module';
           NguoiDung, NienHoc, HocKy, Lop, To, HocSinh,
           DanhMucTieuChi, LichSuChamDiem, TongHopTuan, TongHopThang, PhanQuyen,
         ],
-        synchronize: false, // Tắt auto-sync, dùng Supabase migration SQL thay thế
-        logging: process.env.NODE_ENV !== 'production',
+        synchronize: false,
+        logging: false,
       }),
     }),
 
