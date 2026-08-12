@@ -61,4 +61,115 @@ export class AuthService {
     await this.nguoiDungRepo.update({ user_id: userId }, { vai_tro_he_thong: vaiTro });
     return { message: `Đã cập nhật vai trò hệ thống thành ${vaiTro}` };
   }
+
+  /**
+   * Tạo token giả lập và tự động scaffold dữ liệu kiểm thử nếu DB chưa có
+   */
+  async mockLogin(email: string) {
+    const userId = `mock-uid-${email.replace(/[@.]/g, '-')}`;
+
+    // 1. Tạo hoặc lấy tài khoản hệ thống
+    let user = await this.nguoiDungRepo.findOne({ where: { user_id: userId } });
+    if (!user) {
+      const vaiTroHeThong = email === 'admin@thiduahs.com' ? 'Admin' : 'User';
+      const hoTen = email === 'admin@thiduahs.com' ? 'Admin Kiểm Thử' : email.split('@')[0].toUpperCase();
+      user = await this.nguoiDungRepo.save({
+        user_id: userId,
+        email,
+        ho_ten: hoTen,
+        vai_tro_he_thong: vaiTroHeThong,
+      });
+    }
+
+    // 2. Scaffold dữ liệu trường lớp học kỳ nếu là học sinh
+    if (email !== 'admin@thiduahs.com') {
+      const existingHocSinh = await this.hocSinhRepo.findOne({ where: { email } });
+      if (!existingHocSinh) {
+        // Tự động lấy/tạo Niên học
+        let nienHocId = 1;
+        const nienHoc = await this.nguoiDungRepo.query("SELECT nien_hoc_id FROM td_nienhoc LIMIT 1");
+        if (nienHoc.length === 0) {
+          const res = await this.nguoiDungRepo.query(
+            "INSERT INTO td_nienhoc (ten_nien_hoc, ngay_bat_dau, ngay_ket_thuc, trang_thai) VALUES ('2026-2027', '2026-09-05', '2027-05-30', true) RETURNING nien_hoc_id"
+          );
+          nienHocId = res[0].nien_hoc_id;
+        } else {
+          nienHocId = nienHoc[0].nien_hoc_id;
+        }
+
+        // Tự động lấy/tạo Học kỳ
+        const hocKy = await this.nguoiDungRepo.query("SELECT hoc_ky_id FROM td_hocky LIMIT 1");
+        if (hocKy.length === 0) {
+          await this.nguoiDungRepo.query(
+            `INSERT INTO td_hocky (nien_hoc_id, ten_hoc_ky, trang_thai) VALUES (${nienHocId}, 'Học kỳ 1', true)`
+          );
+        }
+
+        // Tự động lấy/tạo Lớp học
+        let lopId = 1;
+        const lop = await this.nguoiDungRepo.query("SELECT lop_id FROM td_lop LIMIT 1");
+        if (lop.length === 0) {
+          const res = await this.nguoiDungRepo.query(
+            `INSERT INTO td_lop (nien_hoc_id, ten_lop, khoi, gvcn_email) VALUES (${nienHocId}, '10A1', 10, 'gvcn10a1@thiduahs.com') RETURNING lop_id`
+          );
+          lopId = res[0].lop_id;
+        } else {
+          lopId = lop[0].lop_id;
+        }
+
+        // Tự động lấy/tạo Tổ
+        let toId = 1;
+        const to = await this.nguoiDungRepo.query("SELECT to_id FROM td_to LIMIT 1");
+        if (to.length === 0) {
+          const res = await this.nguoiDungRepo.query(
+            `INSERT INTO td_to (lop_id, ten_to) VALUES (${lopId}, 'Tổ 1') RETURNING to_id`
+          );
+          toId = res[0].to_id;
+        } else {
+          toId = to[0].to_id;
+        }
+
+        // Xác định vai trò thi đua tương ứng
+        let vaiTroThiDua: 'LopTruong' | 'LopPho' | 'ToTruong' | 'ToPho' | 'HocSinh' = 'HocSinh';
+        let hoTen = 'Học Sinh Demo';
+        let maHocSinh = 'HS001';
+
+        if (email === 'loptruong@thiduahs.com') {
+          vaiTroThiDua = 'LopTruong';
+          hoTen = 'Lớp Trưởng Demo';
+          maHocSinh = 'HS002';
+        } else if (email === 'totruong1@thiduahs.com') {
+          vaiTroThiDua = 'ToTruong';
+          hoTen = 'Tổ Trưởng Demo';
+          maHocSinh = 'HS003';
+        }
+
+        // Thêm học sinh
+        await this.hocSinhRepo.save({
+          lop_id: lopId,
+          to_id: toId,
+          ho_ten: hoTen,
+          email,
+          ma_hoc_sinh: maHocSinh,
+          vai_tro_thi_dua: vaiTroThiDua,
+        });
+
+        // Thêm phân quyền mặc định của lớp học
+        const pq = await this.nguoiDungRepo.query(`SELECT phan_quyen_id FROM td_phanquyen WHERE lop_id = ${lopId}`);
+        if (pq.length === 0) {
+          await this.nguoiDungRepo.query(`
+            INSERT INTO td_phanquyen (lop_id, vai_tro_thi_dua, duoc_cham_to_vien, duoc_cham_to_truong, duoc_cham_ngoai_to, duoc_duyet_huy_diem) VALUES
+            (${lopId}, 'LopTruong', true, true, true, true),
+            (${lopId}, 'LopPho', true, true, true, false),
+            (${lopId}, 'ToTruong', true, false, false, false),
+            (${lopId}, 'ToPho', true, false, false, false)
+          `);
+        }
+      }
+    }
+
+    return {
+      access_token: `mock-token-${email}`,
+    };
+  }
 }

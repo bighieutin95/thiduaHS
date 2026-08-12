@@ -29,10 +29,11 @@ interface AuthContextType {
   profile: UserProfile | null;
   isLoading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInMock: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
-  isCanBoLop: boolean; // Lớp trưởng hoặc Lớp phó
-  isToTruong: boolean; // Tổ trưởng hoặc Tổ phó
+  isCanBoLop: boolean;
+  isToTruong: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,14 +47,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // Lấy profile từ backend NestJS
-  const fetchProfile = useCallback(async (accessToken: string) => {
+  const fetchProfile = useCallback(async (accessToken?: string) => {
+    const token = accessToken || localStorage.getItem('sb-access-token');
+    if (!token) return;
     try {
       const res = await fetch(`${BACKEND_URL}/auth/profile`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         setProfile(data);
+      } else {
+        // Nếu token hết hạn hoặc lỗi, xóa sạch session
+        setProfile(null);
+        setUser(null);
+        setSession(null);
+        localStorage.removeItem('sb-access-token');
       }
     } catch (err) {
       console.error('Lỗi khi lấy thông tin profile:', err);
@@ -65,24 +74,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.access_token) {
-        fetchProfile(session.access_token).finally(() => setIsLoading(false));
+      
+      const token = session?.access_token || localStorage.getItem('sb-access-token');
+      if (token) {
+        if (session?.access_token) {
+          localStorage.setItem('sb-access-token', session.access_token);
+        }
+        fetchProfile(token).finally(() => setIsLoading(false));
       } else {
-        setIsLoading(false);
+        // Hỗ trợ khôi phục user giả lập từ token trong localStorage khi reload trang
+        const mockToken = localStorage.getItem('sb-access-token');
+        if (mockToken && mockToken.startsWith('mock-token-')) {
+          const email = mockToken.replace('mock-token-', '');
+          const mockUser = {
+            id: `mock-uid-${email.replace(/[@.]/g, '-')}`,
+            email,
+          } as any;
+          setUser(mockUser);
+          setSession({ access_token: mockToken, user: mockUser } as any);
+          fetchProfile(mockToken).finally(() => setIsLoading(false));
+        } else {
+          setIsLoading(false);
+        }
       }
     });
 
-    // Lắng nghe thay đổi trạng thái auth (login, logout, token refresh)
+    // Lắng nghe thay đổi trạng thái auth từ Supabase
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.access_token) {
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+          localStorage.setItem('sb-access-token', session.access_token);
           await fetchProfile(session.access_token);
-        } else {
-          setProfile(null);
         }
-        setIsLoading(false);
       }
     );
 
@@ -98,9 +123,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const signInMock = async (email: string) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/auth/mock-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('sb-access-token', data.access_token);
+        
+        const mockUser = {
+          id: `mock-uid-${email.replace(/[@.]/g, '-')}`,
+          email,
+        } as any;
+        
+        setUser(mockUser);
+        setSession({
+          access_token: data.access_token,
+          user: mockUser,
+        } as any);
+
+        await fetchProfile(data.access_token);
+      }
+    } catch (err) {
+      console.error('Lỗi đăng nhập giả lập:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
+    localStorage.removeItem('sb-access-token');
     setProfile(null);
+    setSession(null);
+    setUser(null);
   };
 
   // Các hàm kiểm tra quyền nhanh
@@ -120,6 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         isLoading,
         signInWithGoogle,
+        signInMock,
         signOut,
         isAdmin,
         isCanBoLop,
@@ -131,7 +192,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Hook tiện lợi để sử dụng AuthContext
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth phải được dùng bên trong AuthProvider');

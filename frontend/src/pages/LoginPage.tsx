@@ -5,7 +5,7 @@ import { Shield, Award, Users, BookOpen } from 'lucide-react';
 import '../styles/login.css';
 
 export default function LoginPage() {
-  const { signInWithGoogle, user, isLoading } = useAuth();
+  const { signInWithGoogle, signInMock, user, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function LoginPage() {
           Chấm điểm thi đua học sinh hàng tuần và tổng hợp xếp loại cuối tháng thông minh, minh bạch
         </p>
 
-        <button className="btn-google" onClick={signInWithGoogle}>
+        <button className="btn-google" onClick={signInWithGoogle} style={{ marginBottom: '12px' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -55,6 +55,23 @@ export default function LoginPage() {
           </svg>
           Đăng nhập với Google
         </button>
+
+        <div className="login-divider">HOẶC ĐĂNG NHẬP NHANH (DEMO)</div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+          <button className="btn btn-sm btn-secondary" onClick={() => signInMock('admin@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}>
+            🔑 Admin
+          </button>
+          <button className="btn btn-sm btn-secondary" onClick={() => signInMock('loptruong@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}>
+            🎓 Lớp Trưởng
+          </button>
+          <button className="btn btn-sm btn-secondary" onClick={() => signInMock('totruong1@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}>
+            🚩 Tổ Trưởng
+          </button>
+          <button className="btn btn-sm btn-secondary" onClick={() => signInMock('hocsinh1@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.1)', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}>
+            👦 Học Sinh
+          </button>
+        </div>
 
         <div className="login-divider">HỆ THỐNG TỰ QUẢN</div>
 
