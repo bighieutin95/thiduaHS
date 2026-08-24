@@ -8,6 +8,7 @@ import Reports from './pages/Reports';
 import RoleConfig from './pages/RoleConfig';
 import StudentsPage from './pages/StudentsPage';
 import ClassesPage from './pages/ClassesPage';
+import CriteriaPage from './pages/CriteriaPage';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="grading" element={<Grading />} />
             <Route path="reports" element={<Reports />} />
             <Route path="students" element={<StudentsPage />} />
+            <Route path="criteria" element={<CriteriaPage />} />
             <Route path="role-config" element={<RoleConfig />} />
           </Route>
 

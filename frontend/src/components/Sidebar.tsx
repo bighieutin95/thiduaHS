@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LayoutDashboard, Award, FileSpreadsheet, Settings, X, GraduationCap, Users } from 'lucide-react';
+import { LayoutDashboard, Award, FileSpreadsheet, Settings, X, GraduationCap, Users, Sliders } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,6 +15,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const canGrade = isAdmin || isCanBoLop || isToTruong || isGvcn;
   const canManageStudents = isAdmin || isGvcn;
   const canManagePermissions = isAdmin || isGvcn;
+  const canManageCriteria = isAdmin || isGvcn;
 
   const getRoleLabel = () => {
     if (profile?.vai_tro_he_thong === 'Admin') return 'Quản trị viên';
@@ -111,6 +112,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             >
               <Settings size={18} />
               <span>Phân quyền lớp học</span>
+            </NavLink>
+          )}
+
+          {canManageCriteria && (
+            <NavLink
+              to="/criteria"
+              onClick={onClose}
+              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            >
+              <Sliders size={18} />
+              <span>Tiêu chí thi đua</span>
             </NavLink>
           )}
         </nav>
