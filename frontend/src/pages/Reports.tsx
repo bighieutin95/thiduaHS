@@ -29,8 +29,18 @@ interface MonthlyReport {
 
 export default function Reports() {
   const { profile } = useAuth();
+  
+  const getTuanThu = (date: Date): number => {
+    const baseDate = new Date(2026, 8, 5); // 05/09/2026
+    const d1 = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const d2 = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+    const diffTime = d1.getTime() - d2.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return 1 + Math.floor(diffDays / 7);
+  };
+
   const [activeTab, setActiveTab] = useState<'week' | 'month'>('week');
-  const [selectedWeek, setSelectedWeek] = useState(33); // Tuần mặc định hiện tại
+  const [selectedWeek, setSelectedWeek] = useState(getTuanThu(new Date())); // Tuần mặc định động
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
@@ -55,8 +65,8 @@ export default function Reports() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
   const token = localStorage.getItem('sb-access-token');
 
-  // Lấy danh sách tuần hiện tại
-  const getWeeks = () => Array.from({ length: 52 }, (_, i) => i + 1);
+  // Lấy danh sách tuần từ -2 đến 52
+  const getWeeks = () => Array.from({ length: 55 }, (_, i) => i - 2);
   const getMonths = () => Array.from({ length: 12 }, (_, i) => i + 1);
 
   const loadWeeklyReport = useCallback(async () => {

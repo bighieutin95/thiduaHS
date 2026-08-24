@@ -8,6 +8,7 @@ import {
 interface Lop {
   lop_id: number;
   ten_lop: string;
+  to?: To[];
 }
 
 interface To {
@@ -120,13 +121,16 @@ export default function StudentsPage() {
 
   // Mở modal thêm/sửa
   const handleOpenModal = (hs?: HocSinh) => {
+    const currentClass = classes.find(c => c.lop_id === selectedClassId);
+    const firstGroupId = currentClass?.to?.[0]?.to_id?.toString() || '1';
+
     if (hs) {
       setEditingStudent(hs);
       setFormData({
         ho_ten: hs.ho_ten,
         ma_hoc_sinh: hs.ma_hoc_sinh || '',
         email: hs.email || '',
-        to_id: hs.to_id ? hs.to_id.toString() : '1',
+        to_id: hs.to_id ? hs.to_id.toString() : firstGroupId,
         vai_tro_thi_dua: hs.vai_tro_thi_dua,
       });
     } else {
@@ -135,7 +139,7 @@ export default function StudentsPage() {
         ho_ten: '',
         ma_hoc_sinh: `HS${Math.floor(100 + Math.random() * 900)}`,
         email: '',
-        to_id: '1',
+        to_id: firstGroupId,
         vai_tro_thi_dua: 'HocSinh',
       });
     }
@@ -179,8 +183,8 @@ export default function StudentsPage() {
       }
 
       if (res.ok) {
-        setMessage({ type: 'success', text: editingStudent ? 'Đã cập nhật thông tin học sinh!' : 'Đã thêm mới học sinh thành công!' });
         setIsModalOpen(false);
+        alert('Đã thay đổi thông tin');
         fetchStudents(selectedClassId);
       } else {
         setMessage({ type: 'error', text: 'Thao tác không thành công. Vui lòng thử lại.' });
@@ -579,10 +583,19 @@ export default function StudentsPage() {
                     value={formData.to_id}
                     onChange={(e) => setFormData({ ...formData, to_id: e.target.value })}
                   >
-                    <option value="1">Tổ 1</option>
-                    <option value="2">Tổ 2</option>
-                    <option value="3">Tổ 3</option>
-                    <option value="4">Tổ 4</option>
+                    {(classes.find(c => c.lop_id === selectedClassId)?.to || []).map(group => (
+                      <option key={group.to_id} value={group.to_id.toString()}>
+                        {group.ten_to}
+                      </option>
+                    ))}
+                    {(!classes.find(c => c.lop_id === selectedClassId)?.to || classes.find(c => c.lop_id === selectedClassId)?.to?.length === 0) && (
+                      <>
+                        <option value="1">Tổ 1</option>
+                        <option value="2">Tổ 2</option>
+                        <option value="3">Tổ 3</option>
+                        <option value="4">Tổ 4</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>

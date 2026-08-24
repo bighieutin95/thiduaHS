@@ -22,14 +22,13 @@ export class ChamDiemService {
     @InjectRepository(NguoiDung) private nguoiDungRepo: Repository<NguoiDung>,
   ) {}
 
-  /**
-   * Tính số thứ tự tuần học dựa trên ngày vi phạm.
-   * Sử dụng ISO week number.
-   */
   private getTuanThu(date: Date): number {
-    const startOfYear = new Date(date.getFullYear(), 0, 1);
-    const days = Math.floor((date.getTime() - startOfYear.getTime()) / 86400000);
-    return Math.ceil((days + startOfYear.getDay() + 1) / 7);
+    const baseDate = new Date(2026, 8, 5); // 05/09/2026 (index tháng 8 trong JS)
+    const d1 = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const d2 = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+    const diffTime = d1.getTime() - d2.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return 1 + Math.floor(diffDays / 7);
   }
 
   /**
