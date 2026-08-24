@@ -7,7 +7,7 @@ export default function BottomNav() {
   const { profile, isAdmin, isCanBoLop, isToTruong } = useAuth();
   const isGvcn = !!profile?.gvcn_lop;
   const canGrade = isAdmin || isCanBoLop || isToTruong || isGvcn;
-  const canManageStudents = isAdmin || isCanBoLop || isGvcn;
+  const canManageStudents = isAdmin || isGvcn;
   const canManagePermissions = isAdmin || isGvcn;
 
   return (

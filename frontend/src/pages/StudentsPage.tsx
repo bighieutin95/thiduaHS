@@ -31,6 +31,21 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/a
 
 export default function StudentsPage() {
   const { profile } = useAuth();
+  const isAdmin = profile?.vai_tro_he_thong === 'Admin';
+  const isGvcn = !!profile?.gvcn_lop;
+
+  if (!isAdmin && !isGvcn) {
+    return (
+      <div className="page-container fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center' }}>
+        <ShieldAlert size={60} style={{ color: 'var(--color-danger)', marginBottom: '16px' }} />
+        <h2 style={{ fontWeight: 800, marginBottom: '8px' }}>Quyền Truy Cập Bị Từ Chối</h2>
+        <p style={{ color: 'var(--text-muted)', maxWidth: '480px' }}>
+          Bạn không có quyền thực hiện chức năng Quản lý học sinh. Trang này chỉ dành riêng cho Admin Quản Trị Viên và Giáo Viên Chủ Nhiệm.
+        </p>
+      </div>
+    );
+  }
+
   const [classes, setClasses] = useState<Lop[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [students, setStudents] = useState<HocSinh[]>([]);

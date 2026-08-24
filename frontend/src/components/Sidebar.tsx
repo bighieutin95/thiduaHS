@@ -13,7 +13,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   // Kiểm tra quyền truy cập các tính năng
   const canGrade = isAdmin || isCanBoLop || isToTruong || isGvcn;
-  const canManageStudents = isAdmin || isCanBoLop || isGvcn;
+  const canManageStudents = isAdmin || isGvcn;
   const canManagePermissions = isAdmin || isGvcn;
 
   const getRoleLabel = () => {
