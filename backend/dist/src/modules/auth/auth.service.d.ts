@@ -32,7 +32,7 @@ export declare class AuthService {
     setVaiTroHeThong(userId: string, vaiTro: 'Admin' | 'User'): Promise<{
         message: string;
     }>;
-    mockLogin(email: string): Promise<{
+    mockLogin(email: string, password?: string): Promise<{
         access_token: string;
     }>;
 }

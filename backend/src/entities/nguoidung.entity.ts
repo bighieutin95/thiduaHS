@@ -18,6 +18,9 @@ export class NguoiDung {
   @Column({ type: 'varchar', length: 50, default: 'User' })
   vai_tro_he_thong: 'Admin' | 'User';
 
+  @Column({ type: 'varchar', length: 255, default: 'Thidua@2026' })
+  mat_khau: string;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   ngay_tao: Date;
 

@@ -9,11 +9,14 @@ export class AuthController {
 
   /**
    * POST /api/auth/mock-login
-   * Lấy token giả lập dựa trên email
+   * Xác thực và đăng nhập dựa trên email & mật khẩu
    */
   @Post('mock-login')
-  async mockLogin(@Body('email') email: string) {
-    return this.authService.mockLogin(email);
+  async mockLogin(
+    @Body('email') email: string,
+    @Body('password') password?: string,
+  ) {
+    return this.authService.mockLogin(email, password);
   }
 
   /**

@@ -17,10 +17,13 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const phanquyen_entity_1 = require("../../entities/phanquyen.entity");
+const nguoidung_entity_1 = require("../../entities/nguoidung.entity");
 let PhanQuyenService = class PhanQuyenService {
     phanQuyenRepo;
-    constructor(phanQuyenRepo) {
+    nguoiDungRepo;
+    constructor(phanQuyenRepo, nguoiDungRepo) {
         this.phanQuyenRepo = phanQuyenRepo;
+        this.nguoiDungRepo = nguoiDungRepo;
     }
     findByLop(lopId) {
         return this.phanQuyenRepo.find({ where: { lop_id: lopId } });
@@ -31,11 +34,22 @@ let PhanQuyenService = class PhanQuyenService {
         }
         return { message: 'Cập nhật phân quyền thành công' };
     }
+    async updatePassword(email, matKhau) {
+        const user = await this.nguoiDungRepo.findOne({ where: { email } });
+        if (!user) {
+            throw new common_1.NotFoundException('Không tìm thấy tài khoản người dùng tương ứng với email này.');
+        }
+        user.mat_khau = matKhau;
+        await this.nguoiDungRepo.save(user);
+        return { message: 'Thay đổi mật khẩu thành công!' };
+    }
 };
 exports.PhanQuyenService = PhanQuyenService;
 exports.PhanQuyenService = PhanQuyenService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(phanquyen_entity_1.PhanQuyen)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(nguoidung_entity_1.NguoiDung)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository])
 ], PhanQuyenService);
 //# sourceMappingURL=phan-quyen.service.js.map

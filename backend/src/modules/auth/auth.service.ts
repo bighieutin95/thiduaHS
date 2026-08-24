@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NguoiDung } from '../../entities/nguoidung.entity';
@@ -76,17 +76,27 @@ export class AuthService {
     if (email === 'admin@thiduahs.com') {
       vaiTroHeThong = 'Admin';
       hoTen = 'Admin Quản Trị Viên';
-    } else if (email === 'gvcn10a1@thiduahs.com') {
-      hoTen = 'Thầy/Cô Chủ Nhiệm (10A1)';
-    } else if (email === 'loptruong@thiduahs.com') {
-      vaiTroThiDua = 'LopTruong';
-      hoTen = 'Lớp Trưởng (10A1)';
-    } else if (email === 'totruong1@thiduahs.com') {
-      vaiTroThiDua = 'ToTruong';
-      hoTen = 'Tổ Trưởng (Tổ 1 - 10A1)';
-    } else if (email === 'hocsinh1@thiduahs.com') {
-      vaiTroThiDua = 'HocSinh';
-      hoTen = 'Học Sinh (Tổ 1 - 10A1)';
+    } else if (email === 'gvcn11c2@thiduahs.com') {
+      hoTen = 'Thầy/Cô Chủ Nhiệm (11C2)';
+    } else if (email.startsWith('hs')) {
+      if (email === 'hs2102106193@thiduahs.com') {
+        vaiTroThiDua = 'LopTruong';
+        hoTen = 'Liêng Jrang Thu An (Lớp trưởng)';
+      } else if (email === 'hs2001272118@thiduahs.com') {
+        vaiTroThiDua = 'ToTruong';
+        hoTen = 'Tou Prong Khúy (Tổ trưởng Tổ 1)';
+      } else if (email === 'hs2001251611@thiduahs.com') {
+        vaiTroThiDua = 'ToTruong';
+        hoTen = 'Bàn Thị Thu Nhung (Tổ trưởng Tổ 2)';
+      } else if (email === 'hs2104298771@thiduahs.com') {
+        vaiTroThiDua = 'ToTruong';
+        hoTen = 'Ka Ly Na (Tổ trưởng Tổ 3)';
+      } else if (email === 'hs2106115809@thiduahs.com') {
+        vaiTroThiDua = 'ToTruong';
+        hoTen = 'Ra Nàng K\' Giâng (Tổ trưởng Tổ 4)';
+      } else {
+        hoTen = 'Học Sinh Lớp 11C2';
+      }
     }
 
     return {
@@ -95,19 +105,19 @@ export class AuthService {
       ho_ten: hoTen,
       avatar_url: 'https://via.placeholder.com/150',
       vai_tro_he_thong: vaiTroHeThong,
-      hoc_sinh: (email === 'admin@thiduahs.com' || email === 'gvcn10a1@thiduahs.com') ? null : {
+      hoc_sinh: (email === 'admin@thiduahs.com' || email === 'gvcn11c2@thiduahs.com') ? null : {
         hoc_sinh_id: 1,
-        lop_id: 1,
-        to_id: 1,
+        lop_id: 4,
+        to_id: 10,
         ho_ten: hoTen,
-        ma_hoc_sinh: 'HS001',
+        ma_hoc_sinh: email.replace('hs', '').split('@')[0],
         vai_tro_thi_dua: vaiTroThiDua,
         ten_to: 'Tổ 1',
-        ten_lop: '10A1',
+        ten_lop: '11C2',
       },
-      gvcn_lop: email === 'gvcn10a1@thiduahs.com' ? {
-        lop_id: 1,
-        ten_lop: '10A1',
+      gvcn_lop: email === 'gvcn11c2@thiduahs.com' ? {
+        lop_id: 4,
+        ten_lop: '11C2',
       } : null,
     };
   }
@@ -121,126 +131,16 @@ export class AuthService {
   }
 
   /**
-   * Tạo token giả lập và tự động scaffold dữ liệu kiểm thử nếu DB chưa có
+   * Xác thực tài khoản với Email và Mật khẩu.
    */
-  async mockLogin(email: string) {
-    try {
-      const getMockUuid = (e: string) => {
-        switch (e) {
-          case 'admin@thiduahs.com': return '00000000-0000-4000-a000-000000000001';
-          case 'loptruong@thiduahs.com': return '00000000-0000-4000-a000-000000000002';
-          case 'totruong1@thiduahs.com': return '00000000-0000-4000-a000-000000000003';
-          case 'hocsinh1@thiduahs.com': return '00000000-0000-4000-a000-000000000004';
-          case 'gvcn10a1@thiduahs.com': return '00000000-0000-4000-a000-000000000005';
-          default: return '11111111-1111-4111-a111-111111111111';
-        }
-      };
-      const userId = getMockUuid(email);
-
-      // 1. Tạo hoặc lấy tài khoản hệ thống
-      let user = await this.nguoiDungRepo.findOne({ where: { user_id: userId } });
-      if (!user) {
-        const vaiTroHeThong = email === 'admin@thiduahs.com' ? 'Admin' : 'User';
-        const hoTen = email === 'admin@thiduahs.com' ? 'Admin Kiểm Thử' : email.split('@')[0].toUpperCase();
-        await this.nguoiDungRepo.save({
-          user_id: userId,
-          email,
-          ho_ten: hoTen,
-          vai_tro_he_thong: vaiTroHeThong,
-        });
-      }
-
-      // 2. Scaffold dữ liệu trường lớp học kỳ nếu không phải Admin
-      if (email !== 'admin@thiduahs.com') {
-        // Tự động lấy/tạo Niên học
-        let nienHocId = 1;
-        const nienHoc = await this.nguoiDungRepo.query("SELECT nien_hoc_id FROM td_nienhoc LIMIT 1");
-        if (nienHoc.length === 0) {
-          const res = await this.nguoiDungRepo.query(
-            "INSERT INTO td_nienhoc (ten_nien_hoc, ngay_bat_dau, ngay_ket_thuc, trang_thai) VALUES ('2026-2027', '2026-09-05', '2027-05-30', true) RETURNING nien_hoc_id"
-          );
-          nienHocId = res[0].nien_hoc_id;
-        } else {
-          nienHocId = nienHoc[0].nien_hoc_id;
-        }
-
-        // Tự động lấy/tạo Học kỳ
-        const hocKy = await this.nguoiDungRepo.query("SELECT hoc_ky_id FROM td_hocky LIMIT 1");
-        if (hocKy.length === 0) {
-          await this.nguoiDungRepo.query(
-            `INSERT INTO td_hocky (nien_hoc_id, ten_hoc_ky, trang_thai) VALUES (${nienHocId}, 'Học kỳ 1', true)`
-          );
-        }
-
-        // Tự động lấy/tạo Lớp học
-        let lopId = 1;
-        const lop = await this.nguoiDungRepo.query("SELECT lop_id FROM td_lop LIMIT 1");
-        if (lop.length === 0) {
-          const res = await this.nguoiDungRepo.query(
-            `INSERT INTO td_lop (nien_hoc_id, ten_lop, khoi, gvcn_email) VALUES (${nienHocId}, '10A1', 10, 'gvcn10a1@thiduahs.com') RETURNING lop_id`
-          );
-          lopId = res[0].lop_id;
-        } else {
-          lopId = lop[0].lop_id;
-        }
-
-        // Tự động lấy/tạo Tổ
-        let toId = 1;
-        const to = await this.nguoiDungRepo.query("SELECT to_id FROM td_to LIMIT 1");
-        if (to.length === 0) {
-          const res = await this.nguoiDungRepo.query(
-            `INSERT INTO td_to (lop_id, ten_to) VALUES (${lopId}, 'Tổ 1') RETURNING to_id`
-          );
-          toId = res[0].to_id;
-        } else {
-          toId = to[0].to_id;
-        }
-
-        // Tạo học sinh nếu là tài khoản học sinh giả lập
-        if (email !== 'gvcn10a1@thiduahs.com') {
-          const existingHocSinh = await this.hocSinhRepo.findOne({ where: { email } });
-          if (!existingHocSinh) {
-            let vaiTroThiDua: 'LopTruong' | 'LopPho' | 'ToTruong' | 'ToPho' | 'HocSinh' = 'HocSinh';
-            let hoTen = 'Học Sinh Demo';
-            let maHocSinh = 'HS001';
-
-            if (email === 'loptruong@thiduahs.com') {
-              vaiTroThiDua = 'LopTruong';
-              hoTen = 'Lớp Trưởng Demo';
-              maHocSinh = 'HS002';
-            } else if (email === 'totruong1@thiduahs.com') {
-              vaiTroThiDua = 'ToTruong';
-              hoTen = 'Tổ Trưởng Demo';
-              maHocSinh = 'HS003';
-            }
-
-            await this.hocSinhRepo.save({
-              lop_id: lopId,
-              to_id: toId,
-              ho_ten: hoTen,
-              email,
-              ma_hoc_sinh: maHocSinh,
-              vai_tro_thi_dua: vaiTroThiDua,
-            });
-
-            // Thêm phân quyền mặc định của lớp học
-            const pq = await this.nguoiDungRepo.query(`SELECT phan_quyen_id FROM td_phanquyen WHERE lop_id = ${lopId}`);
-            if (pq.length === 0) {
-              await this.nguoiDungRepo.query(`
-                INSERT INTO td_phanquyen (lop_id, vai_tro_thi_dua, duoc_cham_to_vien, duoc_cham_to_truong, duoc_cham_ngoai_to, duoc_duyet_huy_diem) VALUES
-                (${lopId}, 'LopTruong', true, true, true, true),
-                (${lopId}, 'LopPho', true, true, true, false),
-                (${lopId}, 'ToTruong', true, false, false, false),
-                (${lopId}, 'ToPho', true, false, false, false)
-              `);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Lỗi scaffold mock user:', err);
+  async mockLogin(email: string, password?: string) {
+    const user = await this.nguoiDungRepo.findOne({ where: { email } });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy tài khoản người dùng tương ứng với email này.');
     }
-
+    if (!password || user.mat_khau !== password) {
+      throw new UnauthorizedException('Mật khẩu đăng nhập không chính xác.');
+    }
     return {
       access_token: `mock-token-${email}`,
     };

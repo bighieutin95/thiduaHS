@@ -18,4 +18,10 @@ export class PhanQuyenController {
   update(@Param('classId', ParseIntPipe) classId: number, @Body() body: any[]) {
     return this.phanQuyenService.updateByLop(classId, body);
   }
+
+  /** PUT /api/permissions/update-password - Admin thay đổi mật khẩu tài khoản bất kỳ */
+  @Put('update-password')
+  updatePassword(@Body('email') email: string, @Body('password') matKhau: string) {
+    return this.phanQuyenService.updatePassword(email, matKhau);
+  }
 }

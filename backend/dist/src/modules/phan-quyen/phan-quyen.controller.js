@@ -27,6 +27,9 @@ let PhanQuyenController = class PhanQuyenController {
     update(classId, body) {
         return this.phanQuyenService.updateByLop(classId, body);
     }
+    updatePassword(email, matKhau) {
+        return this.phanQuyenService.updatePassword(email, matKhau);
+    }
 };
 exports.PhanQuyenController = PhanQuyenController;
 __decorate([
@@ -44,6 +47,14 @@ __decorate([
     __metadata("design:paramtypes", [Number, Array]),
     __metadata("design:returntype", void 0)
 ], PhanQuyenController.prototype, "update", null);
+__decorate([
+    (0, common_1.Put)('update-password'),
+    __param(0, (0, common_1.Body)('email')),
+    __param(1, (0, common_1.Body)('password')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], PhanQuyenController.prototype, "updatePassword", null);
 exports.PhanQuyenController = PhanQuyenController = __decorate([
     (0, common_1.Controller)('permissions'),
     (0, common_1.UseGuards)(supabase_auth_guard_1.SupabaseAuthGuard),

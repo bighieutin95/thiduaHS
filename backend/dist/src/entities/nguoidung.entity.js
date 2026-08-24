@@ -18,6 +18,7 @@ let NguoiDung = class NguoiDung {
     ho_ten;
     avatar_url;
     vai_tro_he_thong;
+    mat_khau;
     ngay_tao;
     lich_su_cham;
 };
@@ -42,6 +43,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 50, default: 'User' }),
     __metadata("design:type", String)
 ], NguoiDung.prototype, "vai_tro_he_thong", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 255, default: 'Thidua@2026' }),
+    __metadata("design:type", String)
+], NguoiDung.prototype, "mat_khau", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ type: 'timestamp with time zone' }),
     __metadata("design:type", Date)

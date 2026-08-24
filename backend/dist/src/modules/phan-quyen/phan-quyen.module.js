@@ -12,12 +12,13 @@ const typeorm_1 = require("@nestjs/typeorm");
 const phan_quyen_controller_1 = require("./phan-quyen.controller");
 const phan_quyen_service_1 = require("./phan-quyen.service");
 const phanquyen_entity_1 = require("../../entities/phanquyen.entity");
+const nguoidung_entity_1 = require("../../entities/nguoidung.entity");
 let PhanQuyenModule = class PhanQuyenModule {
 };
 exports.PhanQuyenModule = PhanQuyenModule;
 exports.PhanQuyenModule = PhanQuyenModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([phanquyen_entity_1.PhanQuyen])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([phanquyen_entity_1.PhanQuyen, nguoidung_entity_1.NguoiDung])],
         controllers: [phan_quyen_controller_1.PhanQuyenController],
         providers: [phan_quyen_service_1.PhanQuyenService],
         exports: [phan_quyen_service_1.PhanQuyenService],

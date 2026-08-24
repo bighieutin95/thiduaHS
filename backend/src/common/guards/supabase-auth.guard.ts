@@ -33,17 +33,16 @@ export class SupabaseAuthGuard implements CanActivate {
 
     const token = authHeader.split(' ')[1];
 
-    // Hỗ trợ đăng nhập giả lập không cần Google OAuth
     if (token.startsWith('mock-token-')) {
       const email = token.replace('mock-token-', '');
       const getMockUuid = (e: string) => {
-        switch (e) {
-          case 'admin@thiduahs.com': return '00000000-0000-4000-a000-000000000001';
-          case 'loptruong@thiduahs.com': return '00000000-0000-4000-a000-000000000002';
-          case 'totruong1@thiduahs.com': return '00000000-0000-4000-a000-000000000003';
-          case 'hocsinh1@thiduahs.com': return '00000000-0000-4000-a000-000000000004';
-          default: return '11111111-1111-4111-a111-111111111111';
+        if (e === 'admin@thiduahs.com') return '00000000-0000-4000-a000-000000000001';
+        if (e === 'gvcn11c2@thiduahs.com') return '00000000-0000-4000-a000-000000000005';
+        if (e.startsWith('hs')) {
+          const maHs = e.replace('hs', '').split('@')[0];
+          return `00000000-0000-4000-a000-${maHs.padStart(12, '0')}`;
         }
+        return '11111111-1111-4111-a111-111111111111';
       };
 
       const mockUser = {

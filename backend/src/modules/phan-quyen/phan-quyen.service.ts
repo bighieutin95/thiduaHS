@@ -1,12 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PhanQuyen } from '../../entities/phanquyen.entity';
+import { NguoiDung } from '../../entities/nguoidung.entity';
 
 @Injectable()
 export class PhanQuyenService {
   constructor(
-    @InjectRepository(PhanQuyen) private phanQuyenRepo: Repository<PhanQuyen>,
+    @InjectRepository(PhanQuyen) private readonly phanQuyenRepo: Repository<PhanQuyen>,
+    @InjectRepository(NguoiDung) private readonly nguoiDungRepo: Repository<NguoiDung>,
   ) {}
 
   /** Lấy cấu hình phân quyền của lớp học */
@@ -23,5 +25,16 @@ export class PhanQuyenService {
       );
     }
     return { message: 'Cập nhật phân quyền thành công' };
+  }
+
+  /** Admin thay đổi mật khẩu của một tài khoản */
+  async updatePassword(email: string, matKhau: string) {
+    const user = await this.nguoiDungRepo.findOne({ where: { email } });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy tài khoản người dùng tương ứng với email này.');
+    }
+    user.mat_khau = matKhau;
+    await this.nguoiDungRepo.save(user);
+    return { message: 'Thay đổi mật khẩu thành công!' };
   }
 }

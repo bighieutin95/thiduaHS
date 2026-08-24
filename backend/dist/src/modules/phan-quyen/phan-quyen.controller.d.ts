@@ -6,4 +6,7 @@ export declare class PhanQuyenController {
     update(classId: number, body: any[]): Promise<{
         message: string;
     }>;
+    updatePassword(email: string, matKhau: string): Promise<{
+        message: string;
+    }>;
 }

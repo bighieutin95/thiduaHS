@@ -30,7 +30,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   isLoading: boolean;
   signInWithGoogle: () => Promise<void>;
-  signInMock: (email: string) => Promise<void>;
+  signInMock: (email: string, password?: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
   isCanBoLop: boolean;
@@ -135,27 +135,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const signInMock = async (email: string) => {
+  const signInMock = async (email: string, password?: string) => {
     setIsLoading(true);
     try {
       const res = await fetch(`${BACKEND_URL}/auth/mock-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password }),
       });
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem('sb-access-token', data.access_token);
         
         const getMockUuid = (e: string) => {
-          switch (e) {
-            case 'admin@thiduahs.com': return '00000000-0000-4000-a000-000000000001';
-            case 'loptruong@thiduahs.com': return '00000000-0000-4000-a000-000000000002';
-            case 'totruong1@thiduahs.com': return '00000000-0000-4000-a000-000000000003';
-            case 'hocsinh1@thiduahs.com': return '00000000-0000-4000-a000-000000000004';
-            case 'gvcn10a1@thiduahs.com': return '00000000-0000-4000-a000-000000000005';
-            default: return '11111111-1111-4111-a111-111111111111';
+          if (e === 'admin@thiduahs.com') return '00000000-0000-4000-a000-000000000001';
+          if (e === 'gvcn11c2@thiduahs.com') return '00000000-0000-4000-a000-000000000005';
+          if (e.startsWith('hs')) {
+            const maHs = e.replace('hs', '').split('@')[0];
+            return `00000000-0000-4000-a000-${maHs.padStart(12, '0')}`;
           }
+          return '11111111-1111-4111-a111-111111111111';
         };
 
         const mockUser = {
@@ -170,9 +169,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } as any);
 
         await fetchProfile(data.access_token);
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Mật khẩu hoặc email đăng nhập không chính xác');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Lỗi đăng nhập giả lập:', err);
+      throw err;
     } finally {
       setIsLoading(false);
     }

@@ -17,14 +17,22 @@ export default function RoleConfig() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // States cho tính năng Đổi mật khẩu của Admin
+  const [students, setStudents] = useState<{ email: string; ho_ten: string }[]>([]);
+  const [selectedEmail, setSelectedEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [pwdMessage, setPwdMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isUpdatingPwd, setIsUpdatingPwd] = useState(false);
+
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
   const token = localStorage.getItem('sb-access-token');
 
   const loadPermissions = useCallback(async () => {
-    if (!profile?.hoc_sinh) return;
+    // Nếu là Admin, có thể cấu hình mặc định cho lớp 4 (lớp 11C2 mới)
+    const lopId = profile?.hoc_sinh?.lop_id || 4;
     setIsLoading(true);
     try {
-      const res = await fetch(`${BACKEND_URL}/permissions/${profile.hoc_sinh.lop_id}`, {
+      const res = await fetch(`${BACKEND_URL}/permissions/${lopId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -76,6 +84,38 @@ export default function RoleConfig() {
     loadPermissions();
   }, [loadPermissions]);
 
+  // Effect load danh sách học sinh & tài khoản để Admin đổi mật khẩu
+  useEffect(() => {
+    const fetchStudents = async () => {
+      if (profile?.vai_tro_he_thong !== 'Admin') return;
+      try {
+        const lopId = profile.hoc_sinh?.lop_id || 4; // Lớp 11C2 mặc định
+        const res = await fetch(`${BACKEND_URL}/classes/${lopId}/students`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Ghép thêm tài khoản Admin và GVCN vào danh sách cấu hình mật khẩu
+          const allUsers = [
+            { email: 'admin@thiduahs.com', ho_ten: '🔑 Admin Quản Trị Viên' },
+            { email: 'gvcn11c2@thiduahs.com', ho_ten: '💼 Thầy/Cô GVCN (11C2)' },
+            ...data.map((hs: any) => ({
+              email: hs.email,
+              ho_ten: `👦 [${hs.vai_tro_thi_dua}] ${hs.ho_ten} (STT: ${hs.ma_hoc_sinh})`
+            }))
+          ];
+          setStudents(allUsers);
+          if (allUsers.length > 0) {
+            setSelectedEmail(allUsers[0].email);
+          }
+        }
+      } catch (err) {
+        console.error('Lỗi tải học sinh đổi mật khẩu:', err);
+      }
+    };
+    fetchStudents();
+  }, [profile, BACKEND_URL, token]);
+
   const handleCheckboxChange = (index: number, field: keyof Omit<PermConfig, 'vai_tro_thi_dua'>) => {
     const updated = [...permissions];
     updated[index][field] = !updated[index][field];
@@ -83,12 +123,12 @@ export default function RoleConfig() {
   };
 
   const handleSave = async () => {
-    if (!profile?.hoc_sinh) return;
+    const lopId = profile?.hoc_sinh?.lop_id || 4;
     setIsSaving(true);
     setMessage(null);
 
     try {
-      const res = await fetch(`${BACKEND_URL}/permissions/${profile.hoc_sinh.lop_id}`, {
+      const res = await fetch(`${BACKEND_URL}/permissions/${lopId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -106,6 +146,37 @@ export default function RoleConfig() {
       setMessage({ type: 'error', text: 'Không thể kết nối đến máy chủ.' });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEmail || !newPassword) {
+      setPwdMessage({ type: 'error', text: 'Vui lòng nhập mật khẩu mới!' });
+      return;
+    }
+    setIsUpdatingPwd(true);
+    setPwdMessage(null);
+    try {
+      const res = await fetch(`${BACKEND_URL}/permissions/update-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email: selectedEmail, password: newPassword }),
+      });
+      if (res.ok) {
+        setPwdMessage({ type: 'success', text: `Đổi mật khẩu cho ${selectedEmail} thành công!` });
+        setNewPassword('');
+      } else {
+        const errData = await res.json();
+        setPwdMessage({ type: 'error', text: errData.message || 'Lỗi đổi mật khẩu.' });
+      }
+    } catch (err) {
+      setPwdMessage({ type: 'error', text: 'Không thể kết nối tới máy chủ.' });
+    } finally {
+      setIsUpdatingPwd(false);
     }
   };
 
@@ -220,6 +291,90 @@ export default function RoleConfig() {
           </button>
         </div>
       </div>
+
+      {/* CHỨC NĂNG ĐỔI MẬT KHẨU CHO ADMIN */}
+      {profile?.vai_tro_he_thong === 'Admin' && (
+        <div className="glass-card" style={{ padding: '24px', marginTop: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+            <ShieldCheck size={20} style={{ color: 'var(--color-primary)' }} />
+            <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>Thay Đổi Mật Khẩu Tài Khoản (Admin Only)</h3>
+          </div>
+
+          {pwdMessage && (
+            <div
+              style={{
+                padding: 'var(--spacing-3)',
+                borderRadius: 'var(--border-radius-md)',
+                marginBottom: '20px',
+                background: pwdMessage.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                color: pwdMessage.type === 'success' ? '#059669' : '#dc2626',
+                border: `1px solid ${pwdMessage.type === 'success' ? '#10b981' : '#ef4444'}`,
+                fontSize: 'var(--font-size-sm)',
+              }}
+            >
+              {pwdMessage.text}
+            </div>
+          )}
+
+          <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '500px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                Chọn tài khoản người dùng:
+              </label>
+              <select
+                value={selectedEmail}
+                onChange={(e) => setSelectedEmail(e.target.value)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 'var(--border-radius-md)',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--color-bg-card)',
+                  color: 'var(--color-text)',
+                  fontSize: '0.95rem',
+                  outline: 'none'
+                }}
+              >
+                {students.map((std) => (
+                  <option key={std.email} value={std.email}>
+                    {std.ho_ten}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                Mật khẩu mới:
+              </label>
+              <input
+                type="text"
+                placeholder="Nhập mật khẩu mới (Ví dụ: Thidua@2026)..."
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 'var(--border-radius-md)',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--color-bg-card)',
+                  color: 'var(--color-text)',
+                  fontSize: '0.95rem',
+                  outline: 'none'
+                }}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={isUpdatingPwd}
+              style={{ width: 'fit-content', padding: '10px 20px', fontWeight: 'bold' }}
+            >
+              {isUpdatingPwd ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
