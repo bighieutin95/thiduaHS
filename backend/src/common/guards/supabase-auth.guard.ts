@@ -37,7 +37,10 @@ export class SupabaseAuthGuard implements CanActivate {
       const email = token.replace('mock-token-', '');
       const getMockUuid = (e: string) => {
         if (e === 'admin@thiduahs.com') return '00000000-0000-4000-a000-000000000001';
-        if (e === 'gvcn11c2@thiduahs.com') return '00000000-0000-4000-a000-000000000005';
+        if (e === 'gvcn11c2@thiduahs.com' || e === 'gvcn10a1@thiduahs.com') return '00000000-0000-4000-a000-000000000005';
+        if (e === 'loptruong@thiduahs.com') return '00000000-0000-4000-a000-002102106193';
+        if (e === 'totruong1@thiduahs.com') return '00000000-0000-4000-a000-002001272118';
+        if (e === 'hocsinh1@thiduahs.com') return '00000000-0000-4000-a000-002001272017';
         if (e.startsWith('hs')) {
           const maHs = e.replace('hs', '').split('@')[0];
           return `00000000-0000-4000-a000-${maHs.padStart(12, '0')}`;

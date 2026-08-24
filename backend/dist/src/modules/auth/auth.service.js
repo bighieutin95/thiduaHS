@@ -77,15 +77,15 @@ let AuthService = class AuthService {
             vaiTroHeThong = 'Admin';
             hoTen = 'Admin Quản Trị Viên';
         }
-        else if (email === 'gvcn11c2@thiduahs.com') {
+        else if (email === 'gvcn11c2@thiduahs.com' || email === 'gvcn10a1@thiduahs.com') {
             hoTen = 'Thầy/Cô Chủ Nhiệm (11C2)';
         }
-        else if (email.startsWith('hs')) {
-            if (email === 'hs2102106193@thiduahs.com') {
+        else {
+            if (email === 'hs2102106193@thiduahs.com' || email === 'loptruong@thiduahs.com') {
                 vaiTroThiDua = 'LopTruong';
                 hoTen = 'Liêng Jrang Thu An (Lớp trưởng)';
             }
-            else if (email === 'hs2001272118@thiduahs.com') {
+            else if (email === 'hs2001272118@thiduahs.com' || email === 'totruong1@thiduahs.com') {
                 vaiTroThiDua = 'ToTruong';
                 hoTen = 'Tou Prong Khúy (Tổ trưởng Tổ 1)';
             }
@@ -105,23 +105,24 @@ let AuthService = class AuthService {
                 hoTen = 'Học Sinh Lớp 11C2';
             }
         }
+        const isTeacher = email === 'admin@thiduahs.com' || email === 'gvcn11c2@thiduahs.com' || email === 'gvcn10a1@thiduahs.com';
         return {
             user_id: userId,
             email,
             ho_ten: hoTen,
             avatar_url: 'https://via.placeholder.com/150',
             vai_tro_he_thong: vaiTroHeThong,
-            hoc_sinh: (email === 'admin@thiduahs.com' || email === 'gvcn11c2@thiduahs.com') ? null : {
+            hoc_sinh: isTeacher ? null : {
                 hoc_sinh_id: 1,
                 lop_id: 4,
                 to_id: 10,
                 ho_ten: hoTen,
-                ma_hoc_sinh: email.replace('hs', '').split('@')[0],
+                ma_hoc_sinh: email.startsWith('hs') ? email.replace('hs', '').split('@')[0] : '2102106193',
                 vai_tro_thi_dua: vaiTroThiDua,
                 ten_to: 'Tổ 1',
                 ten_lop: '11C2',
             },
-            gvcn_lop: email === 'gvcn11c2@thiduahs.com' ? {
+            gvcn_lop: (email === 'gvcn11c2@thiduahs.com' || email === 'gvcn10a1@thiduahs.com') ? {
                 lop_id: 4,
                 ten_lop: '11C2',
             } : null,
