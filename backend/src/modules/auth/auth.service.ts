@@ -24,14 +24,20 @@ export class AuthService {
    */
   async getProfile(userId: string, email: string) {
     try {
+      let queryEmail = email;
+      if (email === 'loptruong@thiduahs.com') queryEmail = 'hs2102106193@thiduahs.com';
+      if (email === 'totruong1@thiduahs.com') queryEmail = 'hs2001272118@thiduahs.com';
+      if (email === 'hocsinh1@thiduahs.com') queryEmail = 'hs2001272017@thiduahs.com';
+      if (email === 'gvcn10a1@thiduahs.com') queryEmail = 'gvcn11c2@thiduahs.com';
+
       let nguoiDung = await this.nguoiDungRepo.findOne({ where: { user_id: userId } });
       let hocSinh = await this.hocSinhRepo.findOne({
-        where: { email },
+        where: { email: queryEmail },
         relations: ['to', 'lop'],
       });
 
       // Kiểm tra xem email này có phải là GVCN của lớp nào không
-      let lopGvcn = await this.lopRepo.findOne({ where: { gvcn_email: email } });
+      let lopGvcn = await this.lopRepo.findOne({ where: { gvcn_email: queryEmail } });
 
       if (nguoiDung) {
         return {

@@ -9,6 +9,7 @@ interface WeeklyReport {
   tong_diem_tru: string;
   tuan_thu: number;
   hoc_sinh: {
+    hoc_sinh_id: number;
     ho_ten: string;
     ma_hoc_sinh: string;
     ten_to: string;
@@ -36,6 +37,20 @@ export default function Reports() {
   const [weeklyData, setWeeklyData] = useState<WeeklyReport[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRealtime, setIsRealtime] = useState(true); // Mặc định xem điểm tạm tính thời gian thực
+
+  // State Modal xem chi tiết vi phạm
+  const [detailModal, setDetailModal] = useState<{
+    isOpen: boolean;
+    studentId: number;
+    studentName: string;
+    records: any[];
+  }>({
+    isOpen: false,
+    studentId: 0,
+    studentName: '',
+    records: []
+  });
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
   const token = localStorage.getItem('sb-access-token');
@@ -45,30 +60,51 @@ export default function Reports() {
   const getMonths = () => Array.from({ length: 12 }, (_, i) => i + 1);
 
   const loadWeeklyReport = useCallback(async () => {
-    if (!profile?.hoc_sinh) return;
+    if (!profile) return;
+    const lopId = profile.hoc_sinh?.lop_id || profile.gvcn_lop?.lop_id || 4; // Mặc định lớp 11C2 (ID: 4)
     setIsLoading(true);
     try {
+      const endpoint = isRealtime ? 'realtime-weekly' : 'weekly';
       const res = await fetch(
-        `${BACKEND_URL}/emulation/reports/weekly?lop_id=${profile.hoc_sinh.lop_id}&tuan_thu=${selectedWeek}`,
+        `${BACKEND_URL}/emulation/reports/${endpoint}?lop_id=${lopId}&tuan_thu=${selectedWeek}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.ok) {
         const data = await res.json();
-        setWeeklyData(data);
+        if (isRealtime) {
+          // Map cấu hình điểm tạm tính sang interface WeeklyReport
+          const mappedData = data.map((item: any, index: number) => ({
+            tong_hop_tuan_id: item.hoc_sinh.hoc_sinh_id + index,
+            diem_cuoi_cung: String(item.diem_cuoi_cung),
+            tong_diem_cong: String(item.tong_diem_cong),
+            tong_diem_tru: String(item.tong_diem_tru),
+            tuan_thu: item.tuan_thu,
+            hoc_sinh: {
+              hoc_sinh_id: item.hoc_sinh.hoc_sinh_id,
+              ho_ten: item.hoc_sinh.ho_ten,
+              ma_hoc_sinh: item.hoc_sinh.ma_hoc_sinh,
+              ten_to: item.hoc_sinh.ten_to || `Tổ ${item.hoc_sinh.to_id || 1}`
+            }
+          }));
+          setWeeklyData(mappedData);
+        } else {
+          setWeeklyData(data);
+        }
       }
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [profile, selectedWeek, token, BACKEND_URL]);
+  }, [profile, selectedWeek, isRealtime, token, BACKEND_URL]);
 
   const loadMonthlyReport = useCallback(async () => {
-    if (!profile?.hoc_sinh) return;
+    if (!profile) return;
+    const lopId = profile.hoc_sinh?.lop_id || profile.gvcn_lop?.lop_id || 4;
     setIsLoading(true);
     try {
       const res = await fetch(
-        `${BACKEND_URL}/emulation/reports/monthly?lop_id=${profile.hoc_sinh.lop_id}&thang=${selectedMonth}&nam=${selectedYear}`,
+        `${BACKEND_URL}/emulation/reports/monthly?lop_id=${lopId}&thang=${selectedMonth}&nam=${selectedYear}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.ok) {
@@ -90,6 +126,22 @@ export default function Reports() {
     }
   }, [activeTab, loadWeeklyReport, loadMonthlyReport]);
 
+  const openDetailModal = async (studentId: number, studentName: string) => {
+    setDetailModal({ isOpen: true, studentId, studentName, records: [] });
+    try {
+      const res = await fetch(`${BACKEND_URL}/emulation/history?hoc_sinh_id=${studentId}&tuan_thu=${selectedWeek}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Lọc bản ghi hợp lệ
+        setDetailModal(prev => ({ ...prev, records: data.filter((d: any) => d.trang_thai === 'HieuLuc') }));
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải chi tiết vi phạm:', err);
+    }
+  };
+
   const getPodiumStudents = () => {
     if (activeTab === 'week') {
       return [...weeklyData].sort((a, b) => Number(b.diem_cuoi_cung) - Number(a.diem_cuoi_cung)).slice(0, 3);
@@ -109,7 +161,20 @@ export default function Reports() {
         </div>
 
         {/* Cấu hình bộ lọc */}
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Nút toggle realtime/chốt */}
+          {activeTab === 'week' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'white', background: 'rgba(255,255,255,0.06)', padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <input
+                type="checkbox"
+                checked={isRealtime}
+                onChange={(e) => setIsRealtime(e.target.checked)}
+                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+              />
+              Xem điểm tạm tính (Thời gian thực)
+            </label>
+          )}
+
           {activeTab === 'week' ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Calendar size={18} style={{ color: 'var(--text-secondary)' }} />
@@ -253,7 +318,7 @@ export default function Reports() {
               <thead>
                 <tr>
                   <th style={{ width: '60px' }}>Hạng</th>
-                  <th>Học sinh</th>
+                  <th>Học sinh (Click dòng để xem chi tiết)</th>
                   <th>Tổ</th>
                   <th>Điểm khởi đầu</th>
                   <th>Tổng cộng (+)</th>
@@ -263,9 +328,14 @@ export default function Reports() {
               </thead>
               <tbody>
                 {weeklyData.map((item, index) => (
-                  <tr key={item.tong_hop_tuan_id}>
+                  <tr 
+                    key={item.tong_hop_tuan_id}
+                    onClick={() => openDetailModal(item.hoc_sinh.hoc_sinh_id, item.hoc_sinh.ho_ten)}
+                    style={{ cursor: 'pointer' }}
+                    title="Click để xem chi tiết vi phạm/thành tích của học sinh này"
+                  >
                     <td style={{ fontWeight: 700 }}>#{index + 1}</td>
-                    <td style={{ fontWeight: 600 }}>{item.hoc_sinh.ho_ten}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{item.hoc_sinh.ho_ten} 🔍</td>
                     <td>{item.hoc_sinh.ten_to || 'Chưa chia'}</td>
                     <td>100.00đ</td>
                     <td style={{ color: 'var(--color-success)', fontWeight: 600 }}>+{Number(item.tong_diem_cong)}đ</td>
@@ -279,7 +349,7 @@ export default function Reports() {
                   <tr>
                     <td colSpan={7} style={{ textAlign: 'center', padding: '32px' }}>
                       <ShieldAlert size={28} style={{ opacity: 0.3, marginBottom: '8px' }} />
-                      <p>Không có dữ liệu điểm chốt của tuần này. Điểm tuần được chốt vào 22h00 tối thứ Sáu.</p>
+                      <p>Không có dữ liệu điểm của tuần này. Điểm tuần được chốt vào 22h00 tối thứ Sáu.</p>
                     </td>
                   </tr>
                 )}
@@ -336,6 +406,68 @@ export default function Reports() {
           </div>
         )}
       </div>
+
+      {/* Modal chi tiết vi phạm */}
+      {detailModal.isOpen && (
+        <div className="mobile-modal-overlay" style={{ zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="glass-card" style={{ width: '90%', maxWidth: '650px', background: '#1e293b', color: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🔍 Chi Tiết Thi Đua: {detailModal.studentName} (Tuần {selectedWeek})
+              </h3>
+              <button onClick={() => setDetailModal(prev => ({ ...prev, isOpen: false }))} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.4rem' }}>✕</button>
+            </div>
+            
+            <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+              {detailModal.records.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                  <ShieldAlert size={36} style={{ opacity: 0.3, marginBottom: '10px' }} />
+                  <p>Không có ghi nhận vi phạm hay thành tích nào trong tuần này.</p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="data-table" style={{ fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Tiêu chí</th>
+                        <th>Điểm</th>
+                        <th>Ngày xảy ra</th>
+                        <th>Ghi chú / Mô tả</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detailModal.records.map((rec: any) => (
+                        <tr key={rec.lich_su_id}>
+                          <td>
+                            <span className={`badge ${rec.tieu_chi.loai === 'Cong' ? 'badge-success' : 'badge-danger'}`}>
+                              {rec.tieu_chi.ten_tieu_chi}
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: 700, color: rec.tieu_chi.loai === 'Cong' ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                            {rec.tieu_chi.loai === 'Cong' ? '+' : '-'}{Number(rec.so_diem_thuc_te)}đ
+                          </td>
+                          <td>{new Date(rec.ngay_vi_pham).toLocaleDateString('vi-VN')}</td>
+                          <td>{rec.mo_ta || 'Không có'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setDetailModal(prev => ({ ...prev, isOpen: false }))}
+                style={{ minHeight: '38px', padding: '0 20px' }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
