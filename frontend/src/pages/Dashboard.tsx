@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Award, AlertTriangle, UserCheck, TrendingUp, History, HelpCircle, Trophy } from 'lucide-react';
 
@@ -10,6 +11,7 @@ interface LichSu {
   so_diem_thuc_te: string;
   ngay_vi_pham: string;
   mo_ta: string;
+  tuan_thu: number;
 }
 
 interface RealtimeRank {
@@ -26,7 +28,9 @@ interface RealtimeRank {
 }
 
 export default function Dashboard() {
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, isCanBoLop, isToTruong } = useAuth();
+  const navigate = useNavigate();
+
   const [history, setHistory] = useState<LichSu[]>([]);
   const [realtimeRanking, setRealtimeRanking] = useState<RealtimeRank[]>([]);
   const [stats, setStats] = useState({
@@ -50,11 +54,18 @@ export default function Dashboard() {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('sb-access-token');
-      
+      const lopId = profile.gvcn_lop?.lop_id || profile.hoc_sinh?.lop_id;
+
       // 1. Lấy lịch sử chấm điểm thi đua
       let url = `${BACKEND_URL}/emulation/history`;
-      if (!isAdmin && profile.hoc_sinh) {
-        url += `?hoc_sinh_id=${profile.hoc_sinh.hoc_sinh_id}`;
+      if (!isAdmin) {
+        if (profile.hoc_sinh && profile.hoc_sinh.vai_tro_thi_dua === 'HocSinh') {
+          // Học sinh thường chỉ xem của bản thân
+          url += `?hoc_sinh_id=${profile.hoc_sinh.hoc_sinh_id}`;
+        } else if (lopId) {
+          // GVCN, Lớp trưởng, Tổ trưởng xem của cả lớp
+          url += `?lop_id=${lopId}`;
+        }
       }
       
       const res = await fetch(url, {
@@ -63,14 +74,16 @@ export default function Dashboard() {
 
       if (res.ok) {
         const data = await res.json();
-        setHistory(data.slice(0, 5));
+        setHistory(data.slice(0, 15)); // Lấy 15 ghi nhận mới nhất
 
-        // Tính toán thống kê cá nhân
+        // Tính toán thống kê cá nhân (nếu là Học sinh)
         if (profile.hoc_sinh) {
           let cong = 0;
           let tru = 0;
+          const currentWeek = getTuanThu(new Date());
+          
           data.forEach((item: any) => {
-            if (item.trang_thai === 'HieuLuc') {
+            if (item.trang_thai === 'HieuLuc' && item.tuan_thu === currentWeek) {
               if (item.tieu_chi.loai === 'Cong') {
                 cong += Number(item.so_diem_thuc_te);
               } else {
@@ -78,6 +91,7 @@ export default function Dashboard() {
               }
             }
           });
+          
           setStats({
             diemHienTai: 100 + cong - tru,
             tongCong: cong,
@@ -87,8 +101,7 @@ export default function Dashboard() {
         }
       }
 
-      // 2. Lấy bảng điểm thời gian thực của lớp học (cho học sinh/GVCN/cán bộ lớp)
-      const lopId = profile.gvcn_lop?.lop_id || profile.hoc_sinh?.lop_id;
+      // 2. Lấy bảng điểm thời gian thực của lớp học
       if (lopId) {
         const currentWeek = getTuanThu(new Date());
         const rankRes = await fetch(`${BACKEND_URL}/emulation/reports/realtime-weekly?lop_id=${lopId}&tuan_thu=${currentWeek}`, {
@@ -118,9 +131,9 @@ export default function Dashboard() {
     );
   }
 
-  // Lấy thông tin điểm cá nhân nếu có, hoặc lấy điểm lớp của GVCN
   const hasHocSinh = !!profile?.hoc_sinh;
   const isGvcn = !!profile?.gvcn_lop;
+  const canGrade = isAdmin || isCanBoLop || isToTruong || isGvcn;
 
   return (
     <div className="page-container fade-in">
@@ -134,12 +147,54 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Grid thẻ thống kê nhanh (Chỉ hiển thị chỉ số cá nhân nếu là Học sinh) */}
+      {/* BANNER CHẤM ĐIỂM NHANH CHO BAN CÁN SỰ / GVCN */}
+      {canGrade && (
+        <div 
+          className="glass-card" 
+          style={{ 
+            padding: '16px 20px', 
+            marginBottom: '1.5rem', 
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(96, 165, 250, 0.05))',
+            borderLeft: '4px solid #3b82f6',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}
+        >
+          <div>
+            <h4 style={{ fontWeight: 700, color: 'white', marginBottom: '4px', fontSize: '1rem' }}>
+              ⚡ Bạn đang đăng nhập với quyền Chấm điểm thi đua
+            </h4>
+            <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+              Ghi nhận điểm cộng thành tích hoặc lỗi vi phạm nề nếp cho học sinh lớp {profile?.hoc_sinh?.ten_lop || profile?.gvcn_lop?.ten_lop || '11C2'}
+            </p>
+          </div>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => navigate('/grading')}
+            style={{ 
+              background: '#3b82f6', 
+              color: 'white', 
+              border: 'none', 
+              padding: '10px 20px', 
+              fontWeight: 'bold', 
+              borderRadius: '8px',
+              cursor: 'pointer'
+            }}
+          >
+            Chấm Điểm Thi Đua
+          </button>
+        </div>
+      )}
+
+      {/* Grid thẻ thống kê nhanh cho học sinh */}
       {hasHocSinh && (
         <div className="dashboard-grid" style={{ marginBottom: '1.5rem' }}>
           <div className="glass-card stat-card" style={{ background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(37, 99, 235, 0.02))' }}>
             <div className="stat-icon" style={{ color: 'var(--color-primary)' }}><Award size={48} /></div>
-            <div className="stat-label">Điểm thi đua tạm tính tuần này</div>
+            <div className="stat-label">Điểm tuần này (Tạm tính)</div>
             <div className="stat-value gradient-text">{stats.diemHienTai}</div>
             <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>Mặc định bắt đầu: 100đ</span>
           </div>
@@ -175,7 +230,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--spacing-5)' }}>
             <History size={20} style={{ color: 'var(--color-primary)' }} />
             <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>
-              {hasHocSinh ? 'Nhật ký thi đua của bạn' : 'Hoạt động thi đua gần đây'}
+              {hasHocSinh && profile?.hoc_sinh?.vai_tro_thi_dua === 'HocSinh' ? 'Lịch sử vi phạm & điểm cộng của bạn' : 'Hoạt động thi đua gần đây'}
             </h3>
           </div>
 
@@ -185,15 +240,16 @@ export default function Dashboard() {
               <p>Chưa có ghi nhận thi đua nào được lưu trong tuần này.</p>
             </div>
           ) : (
-            <div className="table-wrapper">
+            <div className="table-wrapper" style={{ maxHeight: '320px', overflowY: 'auto' }}>
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Học sinh</th>
                     <th>Tiêu chí</th>
                     <th>Điểm</th>
-                    <th>Ngày ghi nhận</th>
-                    <th>Chi tiết</th>
+                    <th style={{ textAlign: 'center' }}>Tuần</th>
+                    <th>Ngày xảy ra</th>
+                    <th>Mô tả</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -208,6 +264,7 @@ export default function Dashboard() {
                       <td style={{ fontWeight: 700, color: item.tieu_chi.loai === 'Cong' ? 'var(--color-success)' : 'var(--color-danger)' }}>
                         {item.tieu_chi.loai === 'Cong' ? '+' : '-'}{Number(item.so_diem_thuc_te)}đ
                       </td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{item.tuan_thu}</td>
                       <td>{new Date(item.ngay_vi_pham).toLocaleDateString('vi-VN')}</td>
                       <td>{item.mo_ta || 'Không có'}</td>
                     </tr>

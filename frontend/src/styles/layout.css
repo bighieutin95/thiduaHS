@@ -224,12 +224,13 @@
   }
 
   .sidebar {
+    width: 260px !important;
     transform: translateX(-100%);
   }
 
   .sidebar.open {
     transform: translateX(0);
-    width: var(--sidebar-width);
+    width: 260px !important;
   }
 
   .sidebar-backdrop {
