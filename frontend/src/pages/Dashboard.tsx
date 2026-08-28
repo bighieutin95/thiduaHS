@@ -20,7 +20,10 @@ interface RealtimeRank {
     ho_ten: string;
     ma_hoc_sinh: string;
     to_id: number;
-    ten_to?: string;
+    to?: {
+      to_id: number;
+      ten_to: string;
+    };
   };
   diem_cuoi_cung: number;
   tong_diem_cong: number;
@@ -324,7 +327,7 @@ export default function Dashboard() {
                         <td style={{ fontWeight: 600, color: isCurrentUser ? '#60a5fa' : 'white' }}>
                           {rank.hoc_sinh.ho_ten} {isCurrentUser && ' (Bạn)'}
                         </td>
-                        <td>Tổ {rank.hoc_sinh.to_id}</td>
+                        <td>{rank.hoc_sinh.to?.ten_to || `Tổ ${rank.hoc_sinh.to_id || 1}`}</td>
                         <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
                           <span style={{ color: 'var(--color-success)' }}>+{rank.tong_diem_cong}</span>
                           <span style={{ color: 'var(--text-muted)' }}> / </span>
