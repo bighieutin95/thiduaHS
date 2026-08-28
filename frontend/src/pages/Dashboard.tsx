@@ -324,7 +324,7 @@ export default function Dashboard() {
                         <td style={{ textAlign: 'center', fontWeight: 700 }}>
                           {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
                         </td>
-                        <td style={{ fontWeight: 600, color: isCurrentUser ? '#60a5fa' : 'white' }}>
+                        <td style={{ fontWeight: 600, color: isCurrentUser ? 'var(--color-primary)' : 'var(--text-primary)' }}>
                           {rank.hoc_sinh.ho_ten} {isCurrentUser && ' (Bạn)'}
                         </td>
                         <td>{rank.hoc_sinh.to?.ten_to || `Tổ ${rank.hoc_sinh.to_id || 1}`}</td>
