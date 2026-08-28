@@ -12,7 +12,12 @@ interface WeeklyReport {
     hoc_sinh_id: number;
     ho_ten: string;
     ma_hoc_sinh: string;
-    ten_to: string;
+    ten_to?: string;
+    to_id?: number;
+    to?: {
+      to_id: number;
+      ten_to: string;
+    };
   };
 }
 
@@ -23,7 +28,12 @@ interface MonthlyReport {
   hoc_sinh: {
     ho_ten: string;
     ma_hoc_sinh: string;
-    ten_to: string;
+    ten_to?: string;
+    to_id?: number;
+    to?: {
+      to_id: number;
+      ten_to: string;
+    };
   };
 }
 
@@ -93,7 +103,7 @@ export default function Reports() {
               hoc_sinh_id: item.hoc_sinh.hoc_sinh_id,
               ho_ten: item.hoc_sinh.ho_ten,
               ma_hoc_sinh: item.hoc_sinh.ma_hoc_sinh,
-              ten_to: item.hoc_sinh.ten_to || `Tổ ${item.hoc_sinh.to_id || 1}`
+              ten_to: item.hoc_sinh.to?.ten_to || `Tổ ${item.hoc_sinh.to_id || 1}`
             }
           }));
           setWeeklyData(mappedData);
@@ -346,7 +356,7 @@ export default function Reports() {
                   >
                     <td style={{ fontWeight: 700 }}>#{index + 1}</td>
                     <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{item.hoc_sinh.ho_ten} 🔍</td>
-                    <td>{item.hoc_sinh.ten_to || 'Chưa chia'}</td>
+                    <td>{item.hoc_sinh.ten_to || item.hoc_sinh.to?.ten_to || 'Chưa chia'}</td>
                     <td>100.00đ</td>
                     <td style={{ color: 'var(--color-success)', fontWeight: 600 }}>+{Number(item.tong_diem_cong)}đ</td>
                     <td style={{ color: 'var(--color-danger)', fontWeight: 600 }}>-{Number(item.tong_diem_tru)}đ</td>
@@ -384,7 +394,7 @@ export default function Reports() {
                   <tr key={item.tong_hop_thang_id}>
                     <td style={{ fontWeight: 700 }}>#{index + 1}</td>
                     <td style={{ fontWeight: 600 }}>{item.hoc_sinh.ho_ten}</td>
-                    <td>{item.hoc_sinh.ten_to || 'Chưa chia'}</td>
+                    <td>{item.hoc_sinh.ten_to || item.hoc_sinh.to?.ten_to || 'Chưa chia'}</td>
                     <td style={{ fontWeight: 700 }}>{Number(item.diem_trung_binh)}đ</td>
                     <td style={{ textAlign: 'right' }}>
                       <span

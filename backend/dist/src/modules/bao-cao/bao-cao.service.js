@@ -34,6 +34,7 @@ let BaoCaoService = class BaoCaoService {
     async baoTuanTheoLop(lopId, tuanThu) {
         return this.tongHopTuanRepo.createQueryBuilder('t')
             .leftJoinAndSelect('t.hoc_sinh', 'hs')
+            .leftJoinAndSelect('hs.to', 'to')
             .where('hs.lop_id = :lopId', { lopId })
             .andWhere('t.tuan_thu = :tuan', { tuan: tuanThu })
             .orderBy('t.diem_cuoi_cung', 'DESC')
@@ -73,6 +74,7 @@ let BaoCaoService = class BaoCaoService {
     async baoThangTheoLop(lopId, thang, nam) {
         return this.tongHopThangRepo.createQueryBuilder('t')
             .leftJoinAndSelect('t.hoc_sinh', 'hs')
+            .leftJoinAndSelect('hs.to', 'to')
             .where('hs.lop_id = :lopId', { lopId })
             .andWhere('t.thang = :thang', { thang })
             .andWhere('t.nam = :nam', { nam })

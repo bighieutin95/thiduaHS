@@ -22,11 +22,28 @@ let TieuChiService = class TieuChiService {
     constructor(tieuChiRepo) {
         this.tieuChiRepo = tieuChiRepo;
     }
-    findAll() {
-        return this.tieuChiRepo.find({ where: { trang_thai: true }, order: { nhom_tieu_chi: 'ASC' } });
+    findAll(showAll = false) {
+        if (showAll) {
+            return this.tieuChiRepo.find({ order: { nhom_tieu_chi: 'ASC', ten_tieu_chi: 'ASC' } });
+        }
+        return this.tieuChiRepo.find({ where: { trang_thai: true }, order: { nhom_tieu_chi: 'ASC', ten_tieu_chi: 'ASC' } });
     }
     create(data) {
         const tc = this.tieuChiRepo.create(data);
+        return this.tieuChiRepo.save(tc);
+    }
+    async update(id, data) {
+        const tc = await this.tieuChiRepo.findOne({ where: { tieu_chi_id: id } });
+        if (!tc)
+            throw new Error('Không tìm thấy tiêu chí thi đua');
+        Object.assign(tc, data);
+        return this.tieuChiRepo.save(tc);
+    }
+    async remove(id) {
+        const tc = await this.tieuChiRepo.findOne({ where: { tieu_chi_id: id } });
+        if (!tc)
+            throw new Error('Không tìm thấy tiêu chí thi đua');
+        tc.trang_thai = false;
         return this.tieuChiRepo.save(tc);
     }
 };

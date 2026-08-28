@@ -21,18 +21,25 @@ let TieuChiController = class TieuChiController {
     constructor(tieuChiService) {
         this.tieuChiService = tieuChiService;
     }
-    findAll() {
-        return this.tieuChiService.findAll();
+    findAll(showAll) {
+        return this.tieuChiService.findAll(showAll === 'true');
     }
     create(body) {
         return this.tieuChiService.create(body);
+    }
+    update(id, body) {
+        return this.tieuChiService.update(id, body);
+    }
+    remove(id) {
+        return this.tieuChiService.remove(id);
     }
 };
 exports.TieuChiController = TieuChiController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('showAll')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], TieuChiController.prototype, "findAll", null);
 __decorate([
@@ -42,6 +49,21 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], TieuChiController.prototype, "create", null);
+__decorate([
+    (0, common_1.Put)(':id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:returntype", void 0)
+], TieuChiController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], TieuChiController.prototype, "remove", null);
 exports.TieuChiController = TieuChiController = __decorate([
     (0, common_1.Controller)('criteria'),
     (0, common_1.UseGuards)(supabase_auth_guard_1.SupabaseAuthGuard),

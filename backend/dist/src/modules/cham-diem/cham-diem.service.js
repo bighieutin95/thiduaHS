@@ -41,9 +41,12 @@ let ChamDiemService = ChamDiemService_1 = class ChamDiemService {
         this.nguoiDungRepo = nguoiDungRepo;
     }
     getTuanThu(date) {
-        const startOfYear = new Date(date.getFullYear(), 0, 1);
-        const days = Math.floor((date.getTime() - startOfYear.getTime()) / 86400000);
-        return Math.ceil((days + startOfYear.getDay() + 1) / 7);
+        const baseDate = new Date(2026, 8, 5);
+        const d1 = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const d2 = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+        const diffTime = d1.getTime() - d2.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return 1 + Math.floor(diffDays / 7);
     }
     isTuanDaChot(ngayViPham) {
         const now = new Date();
