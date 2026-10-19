@@ -22,8 +22,9 @@ let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
     }
-    async mockLogin(email, password) {
-        return this.authService.mockLogin(email, password);
+    async mockLogin(account, username, email, password) {
+        const loginAccount = account || username || email || '';
+        return this.authService.mockLogin(loginAccount, password);
     }
     async getProfile(user) {
         return this.authService.getProfile(user.id, user.email);
@@ -32,10 +33,12 @@ let AuthController = class AuthController {
 exports.AuthController = AuthController;
 __decorate([
     (0, common_1.Post)('mock-login'),
-    __param(0, (0, common_1.Body)('email')),
-    __param(1, (0, common_1.Body)('password')),
+    __param(0, (0, common_1.Body)('account')),
+    __param(1, (0, common_1.Body)('username')),
+    __param(2, (0, common_1.Body)('email')),
+    __param(3, (0, common_1.Body)('password')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "mockLogin", null);
 __decorate([

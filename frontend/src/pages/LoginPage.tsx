@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, Award, Users, BookOpen } from 'lucide-react';
+import { Award, Lock, User as UserIcon } from 'lucide-react';
 import '../styles/login.css';
 
 export default function LoginPage() {
   const { signInMock, user } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
+  const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,28 +22,29 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setErrorMsg('Vui lòng nhập đầy đủ Email và Mật khẩu!');
+    const cleanAccount = account.trim();
+    if (!cleanAccount || !password) {
+      setErrorMsg('Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu!');
       return;
     }
     setErrorMsg('');
     setIsSubmitting(true);
     try {
-      await signInMock(email, password);
+      await signInMock(cleanAccount, password);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Mật khẩu hoặc email không chính xác!');
+      setErrorMsg(err.message || 'Mật khẩu hoặc tài khoản đăng nhập không chính xác!');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDemoClick = async (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('Thidua@2026');
+  const handleQuickLogin = async (demoAccount: string, defaultPassword: string = 'Thidua@2026') => {
+    setAccount(demoAccount);
+    setPassword(defaultPassword);
     setErrorMsg('');
     setIsSubmitting(true);
     try {
-      await signInMock(demoEmail, 'Thidua@2026');
+      await signInMock(demoAccount, defaultPassword);
     } catch (err: any) {
       setErrorMsg(err.message || 'Lỗi đăng nhập nhanh!');
     } finally {
@@ -54,152 +55,203 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="bg-gradient"></div>
-      <div className="bg-orb bg-orb-1"></div>
-      <div className="bg-orb bg-orb-2"></div>
-      <div className="bg-orb bg-orb-3"></div>
 
-      <div className="login-card fade-in">
-        <div className="login-logo">
-          <div className="login-logo-icon">
-            <Award size={28} />
+      <div className="login-card fade-in" style={{ maxWidth: '400px', padding: '32px 24px' }}>
+        {/* Logo & Tiêu đề */}
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '14px',
+              background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              boxShadow: '0 8px 20px rgba(37, 99, 235, 0.35)',
+              marginBottom: '12px',
+            }}
+          >
+            <Award size={32} />
           </div>
-          <span style={{ fontSize: '1.6rem', fontWeight: 800, color: 'white', letterSpacing: '-0.03em' }}>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'white', margin: '0 0 6px 0' }}>
             ThiDua<span style={{ color: '#60a5fa' }}>HS</span>
-          </span>
+          </h1>
+          <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>
+            Hệ Thống Thi Đua Học Sinh
+          </p>
         </div>
 
-        <h1 className="login-title">Hệ Thống Thi Đua</h1>
-        
-        {/* FORM ĐĂNG NHẬP CHÍNH THỨC */}
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '20px 0 10px 0', width: '100%' }}>
-          {errorMsg && (
-            <div style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-              ⚠️ {errorMsg}
+        {/* Thông báo lỗi nếu có */}
+        {errorMsg && (
+          <div
+            style={{
+              color: '#f87171',
+              fontSize: '0.85rem',
+              textAlign: 'center',
+              background: 'rgba(239, 68, 68, 0.12)',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              marginBottom: '16px',
+            }}
+          >
+            ⚠️ {errorMsg}
+          </div>
+        )}
+
+        {/* Form Đăng Nhập Đơn Giản */}
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 500, marginBottom: '6px' }}>
+              Tài khoản (Username hoặc Email)
+            </label>
+            <div style={{ position: 'relative' }}>
+              <UserIcon size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: '#64748b' }} />
+              <input
+                type="text"
+                placeholder="Nhập big_hieu hoặc email..."
+                value={account}
+                onChange={(e) => setAccount(e.target.value)}
+                disabled={isSubmitting}
+                autoComplete="username"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px 10px 38px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(0,0,0,0.25)',
+                  color: 'white',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+                required
+              />
             </div>
-          )}
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}>
-            <label style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>Email tài khoản</label>
-            <input
-              type="email"
-              placeholder="nhap-email@thiduahs.com..."
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isSubmitting}
-              style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '0.95rem' }}
-              required
-            />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left', marginBottom: '4px' }}>
-            <label style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>Mật khẩu</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isSubmitting}
-              style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '0.95rem' }}
-              required
-            />
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 500, marginBottom: '6px' }}>
+              Mật khẩu
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Lock size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: '#64748b' }} />
+              <input
+                type="password"
+                placeholder="Nhập mật khẩu..."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isSubmitting}
+                autoComplete="current-password"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px 10px 38px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(0,0,0,0.25)',
+                  color: 'white',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+                required
+              />
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="btn btn-primary"
             style={{
-              justifyContent: 'center',
-              minHeight: '44px',
-              fontWeight: 'bold',
-              fontSize: '1rem',
-              background: isSubmitting ? '#60a5fa' : '#3b82f6',
-              color: 'white',
-              border: 'none',
+              marginTop: '6px',
+              padding: '12px',
               borderRadius: '8px',
+              border: 'none',
+              background: isSubmitting ? '#60a5fa' : '#2563eb',
+              color: 'white',
+              fontSize: '1rem',
+              fontWeight: 700,
               cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
+              transition: 'background 0.2s',
             }}
           >
             {isSubmitting ? 'ĐANG ĐĂNG NHẬP...' : 'ĐĂNG NHẬP'}
           </button>
         </form>
 
-        {/* Google sign-in button removed */}
-
-        <div className="login-divider">HOẶC ĐĂNG NHẬP NHANH LỚP 11C2 (DEMO)</div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px', width: '100%' }}>
-          <button
-            className="btn btn-sm btn-secondary"
-            onClick={() => handleDemoClick('admin@thiduahs.com')}
-            disabled={isSubmitting}
-            style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
-          >
-            🔑 Admin
-          </button>
-          <button
-            className="btn btn-sm btn-secondary"
-            onClick={() => handleDemoClick('gvcn11c2@thiduahs.com')}
-            disabled={isSubmitting}
-            style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
-          >
-            💼 GVCN (11C2)
-          </button>
-          <button
-            className="btn btn-sm btn-secondary"
-            onClick={() => handleDemoClick('hs2102106193@thiduahs.com')}
-            disabled={isSubmitting}
-            style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
-          >
-            🎓 Lớp Trưởng
-          </button>
-          <button
-            className="btn btn-sm btn-secondary"
-            onClick={() => handleDemoClick('hs2001272118@thiduahs.com')}
-            disabled={isSubmitting}
-            style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
-          >
-            🚩 Tổ Trưởng Tổ 1
-          </button>
-          <button
-            className="btn btn-sm btn-secondary"
-            onClick={() => handleDemoClick('hs2001272017@thiduahs.com')}
-            disabled={isSubmitting}
-            style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)', gridColumn: 'span 2' }}
-          >
-            👦 Học Sinh (Xem điểm cá nhân & cả lớp)
-          </button>
-        </div>
-
-        <div className="login-divider">HỆ THỐNG TỰ QUẢN THI ĐUA</div>
-
-        <div className="login-features">
-          <div className="login-feature-item">
-            <div className="login-feature-icon">
-              <Shield size={18} style={{ color: '#3b82f6' }} />
-            </div>
-            <span>Bảo mật dữ liệu học đường an toàn</span>
+        {/* Nút Đăng Nhập Nhanh (Demo) */}
+        <div style={{ margin: '20px 0 12px 0', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+          <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+            Đăng nhập nhanh (1 chạm)
           </div>
-
-          <div className="login-feature-item">
-            <div className="login-feature-icon">
-              <Users size={18} style={{ color: '#8b5cf6' }} />
-            </div>
-            <span>Phân quyền chi tiết cho ban cán sự lớp</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('big_hieu', 'Thidua@2026')}
+              disabled={isSubmitting}
+              style={{
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'white',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              👑 Admin (big_hieu)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('gvcn11c2@thiduahs.com', 'Thidua@2026')}
+              disabled={isSubmitting}
+              style={{
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'white',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              💼 GVCN (11C2)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('hs2102106193@thiduahs.com', 'Thidua@2026')}
+              disabled={isSubmitting}
+              style={{
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'white',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              🎓 Lớp Trưởng
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('hs2001272017@thiduahs.com', 'Thidua@2026')}
+              disabled={isSubmitting}
+              style={{
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'white',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              👦 Học Sinh
+            </button>
           </div>
-
-          <div className="login-feature-item">
-            <div className="login-feature-icon">
-              <BookOpen size={18} style={{ color: '#06b6d4' }} />
-            </div>
-            <span>Báo cáo xếp loại tuần và tháng tự động</span>
-          </div>
-        </div>
-
-        <div className="login-footer">
-          Bản quyền thuộc về Dự án ThiDuaHS © 2026<br />
-          Thiết kế phục vụ cho giáo dục phổ thông Việt Nam
         </div>
       </div>
     </div>

@@ -140,18 +140,62 @@ export class AuthService {
   }
 
   /**
-   * Xác thực tài khoản với Email và Mật khẩu.
+   * Xác thực tài khoản với Username hoặc Email và Mật khẩu.
    */
-  async mockLogin(email: string, password?: string) {
-    const user = await this.nguoiDungRepo.findOne({ where: { email } });
-    if (!user) {
-      throw new NotFoundException('Không tìm thấy tài khoản người dùng tương ứng với email này.');
+  async mockLogin(account: string, password?: string) {
+    if (!account) {
+      throw new UnauthorizedException('Vui lòng nhập tên đăng nhập hoặc email.');
     }
-    if (!password || user.mat_khau !== password) {
+
+    let user: NguoiDung | null = null;
+    try {
+      user = await this.nguoiDungRepo.findOne({
+        where: [
+          { email: account },
+          { username: account },
+        ],
+      });
+    } catch {
+      // Trường hợp cơ sở dữ liệu chưa có cột username, tìm theo email
+      user = await this.nguoiDungRepo.findOne({ where: { email: account } });
+    }
+
+    // Nếu tài khoản là big_hieu hoặc admin
+    if (!user && (account === 'big_hieu' || account === 'admin@thiduahs.com' || account === 'admin')) {
+      user = await this.nguoiDungRepo.findOne({ where: { email: 'admin@thiduahs.com' } });
+      if (!user) {
+        // Fallback admin mặc định nếu DB chưa có
+        if (password === 'Thidua@2026' || password === 'admin' || password === '123456') {
+          return { access_token: 'mock-token-admin@thiduahs.com' };
+        }
+      }
+    }
+
+    // Nếu không tìm thấy trong DB, hỗ trợ các tài khoản mẫu với mật khẩu mặc định Thidua@2026
+    if (!user) {
+      const demoAccounts: Record<string, string> = {
+        'big_hieu': 'admin@thiduahs.com',
+        'admin': 'admin@thiduahs.com',
+        'gvcn': 'gvcn11c2@thiduahs.com',
+        'gvcn11c2': 'gvcn11c2@thiduahs.com',
+        'loptruong': 'hs2102106193@thiduahs.com',
+        'totruong': 'hs2001272118@thiduahs.com',
+        'hocsinh': 'hs2001272017@thiduahs.com',
+      };
+      const mappedEmail = demoAccounts[account.toLowerCase()];
+      if (mappedEmail && (password === 'Thidua@2026' || password === '123456')) {
+        return { access_token: `mock-token-${mappedEmail}` };
+      }
+
+      throw new NotFoundException('Không tìm thấy tài khoản tương ứng với tên đăng nhập hoặc email này.');
+    }
+
+    if (!password || (user.mat_khau && user.mat_khau !== password)) {
       throw new UnauthorizedException('Mật khẩu đăng nhập không chính xác.');
     }
+
     return {
-      access_token: `mock-token-${email}`,
+      access_token: `mock-token-${user.email}`,
     };
   }
 }

@@ -13,10 +13,13 @@ export class AuthController {
    */
   @Post('mock-login')
   async mockLogin(
-    @Body('email') email: string,
+    @Body('account') account?: string,
+    @Body('username') username?: string,
+    @Body('email') email?: string,
     @Body('password') password?: string,
   ) {
-    return this.authService.mockLogin(email, password);
+    const loginAccount = account || username || email || '';
+    return this.authService.mockLogin(loginAccount, password);
   }
 
   /**

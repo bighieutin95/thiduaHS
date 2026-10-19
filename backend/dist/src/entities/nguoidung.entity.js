@@ -14,6 +14,7 @@ const typeorm_1 = require("typeorm");
 const lichsu_chamdiem_entity_1 = require("./lichsu-chamdiem.entity");
 let NguoiDung = class NguoiDung {
     user_id;
+    username;
     email;
     ho_ten;
     avatar_url;
@@ -27,6 +28,10 @@ __decorate([
     (0, typeorm_1.PrimaryColumn)('uuid'),
     __metadata("design:type", String)
 ], NguoiDung.prototype, "user_id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 255, unique: true }),
+    __metadata("design:type", String)
+], NguoiDung.prototype, "username", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 255, unique: true }),
     __metadata("design:type", String)

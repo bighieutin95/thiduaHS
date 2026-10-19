@@ -1,6 +1,7 @@
 import { LichSuChamDiem } from './lichsu-chamdiem.entity';
 export declare class NguoiDung {
     user_id: string;
+    username: string;
     email: string;
     ho_ten: string;
     avatar_url: string;

@@ -2,7 +2,7 @@ import { AuthService } from './auth.service';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
-    mockLogin(email: string, password?: string): Promise<{
+    mockLogin(account?: string, username?: string, email?: string, password?: string): Promise<{
         access_token: string;
     }>;
     getProfile(user: any): Promise<{

@@ -160,20 +160,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Google sign-in removed per user request
 
-  const signInMock = async (email: string, password?: string) => {
+  const signInMock = async (account: string, password?: string) => {
     setIsLoading(true);
     try {
       const res = await fetch(`${BACKEND_URL}/auth/mock-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ account, email: account, username: account, password }),
       });
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem('sb-access-token', data.access_token);
         
+        let resolvedEmail = account;
+        if (data.access_token && data.access_token.startsWith('mock-token-')) {
+          resolvedEmail = data.access_token.replace('mock-token-', '');
+        }
+
         const getMockUuid = (e: string) => {
-          if (e === 'admin@thiduahs.com') return '00000000-0000-4000-a000-000000000001';
+          if (e === 'admin@thiduahs.com' || e === 'big_hieu') return '00000000-0000-4000-a000-000000000001';
           if (e === 'gvcn11c2@thiduahs.com') return '00000000-0000-4000-a000-000000000005';
           if (e.startsWith('hs')) {
             const maHs = e.replace('hs', '').split('@')[0];
@@ -183,8 +188,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         const mockUser = {
-          id: getMockUuid(email),
-          email,
+          id: getMockUuid(resolvedEmail),
+          email: resolvedEmail,
         } as any;
         
         setUser(mockUser);
@@ -196,10 +201,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await fetchProfile(data.access_token);
       } else {
         const errorData = await res.json();
-        throw new Error(errorData.message || 'Mật khẩu hoặc email đăng nhập không chính xác');
+        throw new Error(errorData.message || 'Mật khẩu hoặc tài khoản đăng nhập không chính xác');
       }
     } catch (err: any) {
-      console.error('Lỗi đăng nhập giả lập:', err);
+      console.error('Lỗi đăng nhập:', err);
       throw err;
     } finally {
       setIsLoading(false);
