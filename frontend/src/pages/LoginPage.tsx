@@ -189,7 +189,7 @@ export default function LoginPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <button
               type="button"
-              onClick={() => handleQuickLogin('big_hieu', 'Thidua@2026')}
+              onClick={() => handleQuickLogin('big_hieu', 'HIEU@124')}
               disabled={isSubmitting}
               style={{
                 padding: '8px',
