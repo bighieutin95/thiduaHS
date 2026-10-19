@@ -9,9 +9,8 @@
   right: 0;
   left: var(--sidebar-width);
   height: var(--topbar-height);
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  background: var(--bg-surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;

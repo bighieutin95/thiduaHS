@@ -200,7 +200,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanAccount = account.trim().toLowerCase();
     const cleanPwd = (password || '').trim();
 
-    // Kiểm tra tính hợp lệ cục bộ
+    // 1. Kiểm tra tài khoản người dùng đã được Admin cấu hình trong LocalStorage
+    try {
+      const storedUsers = JSON.parse(localStorage.getItem('app_users_list') || '[]');
+      const matched = storedUsers.find(
+        (u: any) =>
+          (u.username?.toLowerCase() === cleanAccount || u.email?.toLowerCase() === cleanAccount) &&
+          (u.mat_khau === cleanPwd || (cleanAccount === 'big_hieu' && cleanPwd === 'HIEU@124'))
+      );
+      if (matched) {
+        const resolvedEmail = matched.email;
+        const token = `mock-token-${resolvedEmail}`;
+        localStorage.setItem('sb-access-token', token);
+
+        const isTeacherOrAdmin = matched.vai_tro === 'Admin' || matched.vai_tro === 'GVCN';
+        const mockProfile: UserProfile = {
+          user_id: matched.id ? String(matched.id) : '00000000-0000-4000-a000-000000000001',
+          email: resolvedEmail,
+          ho_ten: matched.ho_ten,
+          avatar_url: null,
+          vai_tro_he_thong: (matched.vai_tro === 'Admin' ? 'Admin' : 'User') as any,
+          hoc_sinh: isTeacherOrAdmin ? null : {
+            hoc_sinh_id: 1,
+            lop_id: 4,
+            to_id: matched.to_id || 1,
+            ho_ten: matched.ho_ten,
+            ma_hoc_sinh: matched.username,
+            vai_tro_thi_dua: matched.vai_tro || 'HocSinh',
+            ten_to: matched.to || 'Tổ 1',
+            ten_lop: matched.lop || '11C2',
+          },
+          gvcn_lop: matched.vai_tro === 'GVCN' ? { lop_id: 4, ten_lop: '11C2' } : null,
+        };
+
+        const mockUser = {
+          id: mockProfile.user_id,
+          email: resolvedEmail,
+        } as any;
+
+        setUser(mockUser);
+        setProfile(mockProfile);
+        setSession({ access_token: token, user: mockUser } as any);
+        setIsLoading(false);
+        return;
+      }
+    } catch (e) {
+      console.warn('Lỗi kiểm tra app_users_list:', e);
+    }
+
+    // 2. Kiểm tra tính hợp lệ mặc định
     const isAdminAccount =
       (cleanAccount === 'big_hieu' || cleanAccount === 'admin@thiduahs.com' || cleanAccount === 'admin') &&
       (cleanPwd === 'HIEU@124' || cleanPwd === 'hieu@124' || cleanPwd === 'Thidua@2026' || cleanPwd === 'admin');

@@ -34,6 +34,34 @@ let PhanQuyenService = class PhanQuyenService {
         }
         return { message: 'Cập nhật phân quyền thành công' };
     }
+    async getAllUsers() {
+        return this.nguoiDungRepo.find({ order: { ngay_tao: 'ASC' } });
+    }
+    async updateUser(body) {
+        let user = await this.nguoiDungRepo.findOne({ where: { email: body.email } });
+        if (!user) {
+            user = this.nguoiDungRepo.create({
+                user_id: require('crypto').randomUUID(),
+                email: body.email,
+                username: body.username || body.email.split('@')[0],
+                mat_khau: body.mat_khau || 'Thidua@2026',
+                ho_ten: body.ho_ten || body.email,
+                vai_tro_he_thong: (body.vai_tro_he_thong === 'Admin' ? 'Admin' : 'User'),
+            });
+        }
+        else {
+            if (body.username)
+                user.username = body.username;
+            if (body.mat_khau)
+                user.mat_khau = body.mat_khau;
+            if (body.ho_ten)
+                user.ho_ten = body.ho_ten;
+            if (body.vai_tro_he_thong)
+                user.vai_tro_he_thong = (body.vai_tro_he_thong === 'Admin' ? 'Admin' : 'User');
+        }
+        await this.nguoiDungRepo.save(user);
+        return { message: 'Cập nhật tài khoản người dùng thành công!', user };
+    }
     async updatePassword(email, matKhau) {
         const user = await this.nguoiDungRepo.findOne({ where: { email } });
         if (!user) {

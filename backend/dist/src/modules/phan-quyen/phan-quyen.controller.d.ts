@@ -6,6 +6,11 @@ export declare class PhanQuyenController {
     update(classId: number, body: any[]): Promise<{
         message: string;
     }>;
+    getAllUsers(): Promise<import("../../entities/nguoidung.entity").NguoiDung[]>;
+    updateUser(body: any): Promise<{
+        message: string;
+        user: import("../../entities/nguoidung.entity").NguoiDung;
+    }>;
     updatePassword(email: string, matKhau: string): Promise<{
         message: string;
     }>;

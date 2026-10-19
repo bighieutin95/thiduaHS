@@ -27,6 +27,12 @@ let PhanQuyenController = class PhanQuyenController {
     update(classId, body) {
         return this.phanQuyenService.updateByLop(classId, body);
     }
+    getAllUsers() {
+        return this.phanQuyenService.getAllUsers();
+    }
+    updateUser(body) {
+        return this.phanQuyenService.updateUser(body);
+    }
     updatePassword(email, matKhau) {
         return this.phanQuyenService.updatePassword(email, matKhau);
     }
@@ -47,6 +53,19 @@ __decorate([
     __metadata("design:paramtypes", [Number, Array]),
     __metadata("design:returntype", void 0)
 ], PhanQuyenController.prototype, "update", null);
+__decorate([
+    (0, common_1.Get)('users/all'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], PhanQuyenController.prototype, "getAllUsers", null);
+__decorate([
+    (0, common_1.Put)('update-user'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], PhanQuyenController.prototype, "updateUser", null);
 __decorate([
     (0, common_1.Put)('update-password'),
     __param(0, (0, common_1.Body)('email')),

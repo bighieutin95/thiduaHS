@@ -19,6 +19,18 @@ export class PhanQuyenController {
     return this.phanQuyenService.updateByLop(classId, body);
   }
 
+  /** GET /api/permissions/users/all - Lấy danh sách toàn bộ người dùng */
+  @Get('users/all')
+  getAllUsers() {
+    return this.phanQuyenService.getAllUsers();
+  }
+
+  /** PUT /api/permissions/update-user - Admin cấp username, mật khẩu và quyền */
+  @Put('update-user')
+  updateUser(@Body() body: any) {
+    return this.phanQuyenService.updateUser(body);
+  }
+
   /** PUT /api/permissions/update-password - Admin thay đổi mật khẩu tài khoản bất kỳ */
   @Put('update-password')
   updatePassword(@Body('email') email: string, @Body('password') matKhau: string) {

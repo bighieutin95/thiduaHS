@@ -27,6 +27,33 @@ export class PhanQuyenService {
     return { message: 'Cập nhật phân quyền thành công' };
   }
 
+  /** Lấy danh sách toàn bộ người dùng hệ thống */
+  async getAllUsers() {
+    return this.nguoiDungRepo.find({ order: { ngay_tao: 'ASC' } });
+  }
+
+  /** Admin cấp username, mật khẩu và quyền cho người dùng */
+  async updateUser(body: { email: string; username?: string; mat_khau?: string; vai_tro_he_thong?: string; ho_ten?: string }) {
+    let user = await this.nguoiDungRepo.findOne({ where: { email: body.email } });
+    if (!user) {
+      user = this.nguoiDungRepo.create({
+        user_id: require('crypto').randomUUID(),
+        email: body.email,
+        username: body.username || body.email.split('@')[0],
+        mat_khau: body.mat_khau || 'Thidua@2026',
+        ho_ten: body.ho_ten || body.email,
+        vai_tro_he_thong: (body.vai_tro_he_thong === 'Admin' ? 'Admin' : 'User') as any,
+      });
+    } else {
+      if (body.username) user.username = body.username;
+      if (body.mat_khau) user.mat_khau = body.mat_khau;
+      if (body.ho_ten) user.ho_ten = body.ho_ten;
+      if (body.vai_tro_he_thong) user.vai_tro_he_thong = (body.vai_tro_he_thong === 'Admin' ? 'Admin' : 'User') as any;
+    }
+    await this.nguoiDungRepo.save(user);
+    return { message: 'Cập nhật tài khoản người dùng thành công!', user };
+  }
+
   /** Admin thay đổi mật khẩu của một tài khoản */
   async updatePassword(email: string, matKhau: string) {
     const user = await this.nguoiDungRepo.findOne({ where: { email } });

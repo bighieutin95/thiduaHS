@@ -183,7 +183,7 @@ button, input, select, textarea {
 .main-content {
   flex: 1;
   margin-left: var(--sidebar-width);
-  padding-top: var(--topbar-height);
+  padding-top: calc(var(--topbar-height) + 16px);
   min-height: 100vh;
   transition: margin-left var(--transition-base);
 }
