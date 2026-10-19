@@ -116,7 +116,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        // Google sign-in button removed per user request
+        {/* Google sign-in button removed */}
 
         <div className="login-divider">HOẶC ĐĂNG NHẬP NHANH LỚP 11C2 (DEMO)</div>
 
