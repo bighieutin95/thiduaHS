@@ -28,7 +28,7 @@ interface HocSinh {
   lop?: Lop;
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
+import { BACKEND_URL } from '../config';
 
 export default function StudentsPage() {
   const { profile } = useAuth();

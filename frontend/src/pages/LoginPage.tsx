@@ -5,7 +5,7 @@ import { Shield, Award, Users, BookOpen } from 'lucide-react';
 import '../styles/login.css';
 
 export default function LoginPage() {
-  const { signInMock, user, isLoading } = useAuth();
+  const { signInMock, user } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -51,15 +51,6 @@ export default function LoginPage() {
     }
   };
 
-  if (isLoading || isSubmitting) {
-    return (
-      <div className="login-page">
-        <div className="bg-gradient"></div>
-        <div className="spinner"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="login-page">
       <div className="bg-gradient"></div>
@@ -94,6 +85,7 @@ export default function LoginPage() {
               placeholder="nhap-email@thiduahs.com..."
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={isSubmitting}
               style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '0.95rem' }}
               required
             />
@@ -106,13 +98,30 @@ export default function LoginPage() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={isSubmitting}
               style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: 'white', fontSize: '0.95rem' }}
               required
             />
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center', minHeight: '44px', fontWeight: 'bold', fontSize: '1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}>
-            ĐĂNG NHẬP
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="btn btn-primary"
+            style={{
+              justifyContent: 'center',
+              minHeight: '44px',
+              fontWeight: 'bold',
+              fontSize: '1rem',
+              background: isSubmitting ? '#60a5fa' : '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            {isSubmitting ? 'ĐANG ĐĂNG NHẬP...' : 'ĐĂNG NHẬP'}
           </button>
         </form>
 
@@ -121,19 +130,44 @@ export default function LoginPage() {
         <div className="login-divider">HOẶC ĐĂNG NHẬP NHANH LỚP 11C2 (DEMO)</div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px', width: '100%' }}>
-          <button className="btn btn-sm btn-secondary" onClick={() => handleDemoClick('admin@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}>
+          <button
+            className="btn btn-sm btn-secondary"
+            onClick={() => handleDemoClick('admin@thiduahs.com')}
+            disabled={isSubmitting}
+            style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
+          >
             🔑 Admin
           </button>
-          <button className="btn btn-sm btn-secondary" onClick={() => handleDemoClick('gvcn11c2@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}>
+          <button
+            className="btn btn-sm btn-secondary"
+            onClick={() => handleDemoClick('gvcn11c2@thiduahs.com')}
+            disabled={isSubmitting}
+            style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
+          >
             💼 GVCN (11C2)
           </button>
-          <button className="btn btn-sm btn-secondary" onClick={() => handleDemoClick('hs2102106193@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}>
+          <button
+            className="btn btn-sm btn-secondary"
+            onClick={() => handleDemoClick('hs2102106193@thiduahs.com')}
+            disabled={isSubmitting}
+            style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
+          >
             🎓 Lớp Trưởng
           </button>
-          <button className="btn btn-sm btn-secondary" onClick={() => handleDemoClick('hs2001272118@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}>
+          <button
+            className="btn btn-sm btn-secondary"
+            onClick={() => handleDemoClick('hs2001272118@thiduahs.com')}
+            disabled={isSubmitting}
+            style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)' }}
+          >
             🚩 Tổ Trưởng Tổ 1
           </button>
-          <button className="btn btn-sm btn-secondary" onClick={() => handleDemoClick('hs2001272017@thiduahs.com')} style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)', gridColumn: 'span 2' }}>
+          <button
+            className="btn btn-sm btn-secondary"
+            onClick={() => handleDemoClick('hs2001272017@thiduahs.com')}
+            disabled={isSubmitting}
+            style={{ justifyContent: 'center', background: 'rgba(255,255,255,0.06)', color: 'white', borderColor: 'rgba(255,255,255,0.1)', gridColumn: 'span 2' }}
+          >
             👦 Học Sinh (Xem điểm cá nhân & cả lớp)
           </button>
         </div>

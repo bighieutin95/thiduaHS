@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Award, AlertTriangle, UserCheck, TrendingUp, History, HelpCircle, Trophy } from 'lucide-react';
+import { BACKEND_URL } from '../config';
 
 interface LichSu {
   lich_su_id: string;
@@ -43,8 +44,6 @@ export default function Dashboard() {
     viPhamPhoBien: 'Không có',
   });
   const [isLoading, setIsLoading] = useState(true);
-
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
 
   const getTuanThu = (date: Date): number => {
     const baseDate = new Date(2026, 8, 5); // 05/09/2026

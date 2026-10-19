@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Search, Calendar, FileText, XCircle } from 'lucide-react';
+import { BACKEND_URL } from '../config';
 
 interface Lop {
   lop_id: number;
@@ -50,7 +51,6 @@ export default function Grading() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
   const token = localStorage.getItem('sb-access-token');
 
   // Load danh sách lớp học

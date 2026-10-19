@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { ShieldCheck, Save, RefreshCw } from 'lucide-react';
+import { BACKEND_URL } from '../config';
 
 interface PermConfig {
   vai_tro_thi_dua: 'LopTruong' | 'LopPho' | 'ToTruong' | 'ToPho';
@@ -24,7 +25,6 @@ export default function RoleConfig() {
   const [pwdMessage, setPwdMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isUpdatingPwd, setIsUpdatingPwd] = useState(false);
 
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
   const token = localStorage.getItem('sb-access-token');
 
   const loadPermissions = useCallback(async () => {

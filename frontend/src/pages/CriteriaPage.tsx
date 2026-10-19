@@ -13,7 +13,7 @@ interface TieuChi {
   trang_thai: boolean;
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
+import { BACKEND_URL } from '../config';
 
 export default function CriteriaPage() {
   const { profile } = useAuth();

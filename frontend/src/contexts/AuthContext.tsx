@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { BACKEND_URL } from '../config';
 
 // --- Kiểu dữ liệu ---
 interface HocSinhInfo {
@@ -39,8 +40,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -66,13 +65,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('sb-access-token');
       }
     } catch (err) {
-      console.error('Lỗi khi lấy thông tin profile:', err);
+      console.warn('Lỗi khi lấy thông tin profile:', err);
+      // Nếu không kết nối được backend, giải phóng session tránh kẹt loading
+      setProfile(null);
+      setUser(null);
+      setSession(null);
+      localStorage.removeItem('sb-access-token');
     }
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    // Timeout an toàn: Đảm bảo tối đa 1.5s là dừng loading, không bao giờ kẹt màn hình trắng
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    }, 1500);
+
     // Lấy session hiện tại khi ứng dụng khởi động
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -81,7 +95,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.access_token) {
           localStorage.setItem('sb-access-token', session.access_token);
         }
-        fetchProfile(token).finally(() => setIsLoading(false));
+        fetchProfile(token).finally(() => {
+          if (isMounted) setIsLoading(false);
+        });
       } else {
         // Hỗ trợ khôi phục user giả lập từ token trong localStorage khi reload trang
         const mockToken = localStorage.getItem('sb-access-token');
@@ -104,26 +120,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } as any;
           setUser(mockUser);
           setSession({ access_token: mockToken, user: mockUser } as any);
-          fetchProfile(mockToken).finally(() => setIsLoading(false));
+          fetchProfile(mockToken).finally(() => {
+            if (isMounted) setIsLoading(false);
+          });
         } else {
           setIsLoading(false);
         }
       }
+    }).catch((err) => {
+      console.warn('Lỗi getSession:', err);
+      if (isMounted) setIsLoading(false);
     });
 
     // Lắng nghe thay đổi trạng thái auth từ Supabase
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session) {
-          setSession(session);
-          setUser(session.user);
-          localStorage.setItem('sb-access-token', session.access_token);
-          await fetchProfile(session.access_token);
+    let subscription: any = null;
+    try {
+      const authSub = supabase.auth.onAuthStateChange(
+        async (_event, session) => {
+          if (!isMounted) return;
+          if (session) {
+            setSession(session);
+            setUser(session.user);
+            localStorage.setItem('sb-access-token', session.access_token);
+            await fetchProfile(session.access_token);
+          }
         }
-      }
-    );
+      );
+      subscription = authSub?.data?.subscription;
+    } catch (e) {
+      console.warn('Lỗi onAuthStateChange:', e);
+    }
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+      if (subscription?.unsubscribe) subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   // Google sign-in removed per user request

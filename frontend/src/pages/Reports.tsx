@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Calendar, Medal, ShieldAlert } from 'lucide-react';
+import { BACKEND_URL } from '../config';
 
 interface WeeklyReport {
   tong_hop_tuan_id: number;
@@ -72,7 +73,6 @@ export default function Reports() {
     records: []
   });
 
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
   const token = localStorage.getItem('sb-access-token');
 
   // Lấy danh sách tuần từ -2 đến 52

@@ -11,7 +11,7 @@ interface Lop {
   gvcn_email: string | null;
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
+import { BACKEND_URL } from '../config';
 
 export default function ClassesPage() {
   const [classes, setClasses] = useState<Lop[]>([]);
