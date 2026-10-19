@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Sun, Moon, Menu, LogOut, Award } from 'lucide-react';
+import RoleAvatar from './RoleAvatar';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -56,10 +57,9 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
         {profile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img
-              src={profile.avatar_url || 'https://via.placeholder.com/150'}
-              alt={profile.ho_ten || 'User'}
-              className="user-avatar"
+            <RoleAvatar
+              role={profile.vai_tro_he_thong === 'Admin' ? 'Admin' : (profile.hoc_sinh?.vai_tro_thi_dua || 'HocSinh')}
+              size={36}
             />
             <div className="user-details" style={{ display: 'none' /* Ẩn trên mobile */ }}>
               <span className="user-name">{profile.ho_ten}</span>

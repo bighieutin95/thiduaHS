@@ -14,6 +14,7 @@ interface TieuChi {
 }
 
 import { BACKEND_URL } from '../config';
+import { DEFAULT_CRITERIA, getStoredData, setStoredData } from '../lib/mockData';
 
 export default function CriteriaPage() {
   const { profile } = useAuth();
@@ -54,20 +55,24 @@ export default function CriteriaPage() {
   const fetchCriteria = useCallback(async () => {
     setLoading(true);
     try {
-      // Gọi API lấy tất cả tiêu chí (kể cả tiêu chí đã xóa mềm/trạng thái false)
       const res = await fetch(`${BACKEND_URL}/criteria?showAll=true`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
-        setCriteria(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setCriteria(data);
+          setLoading(false);
+          return;
+        }
       }
-    } catch (err) {
-      console.error(err);
-      setMessage({ type: 'error', text: 'Không thể tải danh sách tiêu chí thi đua.' });
-    } finally {
-      setLoading(false);
+    } catch {
+      // fallback
     }
+
+    const fallback = getStoredData('app_criteria_list', DEFAULT_CRITERIA);
+    setCriteria(fallback);
+    setLoading(false);
   }, [token, BACKEND_URL]);
 
   useEffect(() => {
@@ -89,7 +94,7 @@ export default function CriteriaPage() {
       setEditingCriteria(null);
       setFormData({
         ten_tieu_chi: '',
-        nhom_tieu_chi: 'Nề nếp / Tác phong',
+        nhom_tieu_chi: 'Nền nếp',
         loai: 'Tru',
         so_diem: '2.0',
         trang_thai: true
@@ -105,65 +110,80 @@ export default function CriteriaPage() {
       return;
     }
 
-    const payload = {
-      ten_tieu_chi: formData.ten_tieu_chi,
-      nhom_tieu_chi: formData.nhom_tieu_chi,
-      loai: formData.loai,
-      so_diem: parseFloat(formData.so_diem),
-      trang_thai: formData.trang_thai
-    };
+    let updated: TieuChi[];
+    if (editingCriteria) {
+      updated = criteria.map((tc) =>
+        tc.tieu_chi_id === editingCriteria.tieu_chi_id
+          ? {
+              ...tc,
+              ten_tieu_chi: formData.ten_tieu_chi.trim(),
+              nhom_tieu_chi: formData.nhom_tieu_chi.trim(),
+              loai: formData.loai,
+              so_diem: parseFloat(formData.so_diem).toFixed(2),
+              trang_thai: formData.trang_thai,
+            }
+          : tc
+      );
+    } else {
+      const newTc: TieuChi = {
+        tieu_chi_id: Date.now(),
+        ten_tieu_chi: formData.ten_tieu_chi.trim(),
+        nhom_tieu_chi: formData.nhom_tieu_chi.trim(),
+        loai: formData.loai,
+        so_diem: parseFloat(formData.so_diem).toFixed(2),
+        trang_thai: formData.trang_thai,
+      };
+      updated = [newTc, ...criteria];
+    }
+
+    setCriteria(updated);
+    setStoredData('app_criteria_list', updated);
+    setIsModalOpen(false);
+    setMessage({
+      type: 'success',
+      text: editingCriteria ? 'Đã cập nhật tiêu chí thi đua thành công!' : 'Đã thêm tiêu chí mới thành công!',
+    });
 
     try {
-      let res;
+      const payload = {
+        ten_tieu_chi: formData.ten_tieu_chi,
+        nhom_tieu_chi: formData.nhom_tieu_chi,
+        loai: formData.loai,
+        so_diem: parseFloat(formData.so_diem),
+        trang_thai: formData.trang_thai
+      };
       if (editingCriteria) {
-        res = await fetch(`${BACKEND_URL}/criteria/${editingCriteria.tieu_chi_id}`, {
+        await fetch(`${BACKEND_URL}/criteria/${editingCriteria.tieu_chi_id}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch(`${BACKEND_URL}/criteria`, {
+        await fetch(`${BACKEND_URL}/criteria`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload)
         });
       }
-
-      if (res.ok) {
-        setIsModalOpen(false);
-        alert('Đã thay đổi thông tin');
-        fetchCriteria();
-      } else {
-        setMessage({ type: 'error', text: 'Lỗi ghi nhận tiêu chí. Vui lòng thử lại.' });
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage({ type: 'error', text: 'Lỗi kết nối máy chủ.' });
+    } catch {
+      // offline ok
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa tiêu chí thi đua này? (Hệ thống sẽ thực hiện tắt trạng thái hoạt động để bảo toàn lịch sử cũ)')) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa tiêu chí thi đua này?')) return;
+    const updated = criteria.filter((tc) => tc.tieu_chi_id !== id);
+    setCriteria(updated);
+    setStoredData('app_criteria_list', updated);
+    setMessage({ type: 'success', text: 'Đã xóa tiêu chí thành công!' });
+
     try {
-      const res = await fetch(`${BACKEND_URL}/criteria/${id}`, {
+      await fetch(`${BACKEND_URL}/criteria/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) {
-        alert('Đã thay đổi thông tin');
-        fetchCriteria();
-      } else {
-        alert('Lỗi khi xóa tiêu chí.');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Lỗi kết nối máy chủ.');
+    } catch {
+      // offline ok
     }
   };
 

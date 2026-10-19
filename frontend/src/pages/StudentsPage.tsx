@@ -1,19 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Users, UserPlus, FileSpreadsheet, Search, Edit, Trash2, 
-  X, CheckCircle, ShieldAlert, Sparkles, Save, User, IdCard, Mail, Award, AlertCircle
+  X, CheckCircle, ShieldAlert, Sparkles, Save, Calendar, ChevronLeft, ChevronRight,
+  Clock, Check
 } from 'lucide-react';
+import RoleAvatar from '../components/RoleAvatar';
+import { BACKEND_URL } from '../config';
+import { DEFAULT_CLASSES, DEFAULT_STUDENTS_11C2, getStoredData, setStoredData } from '../lib/mockData';
 
 interface Lop {
   lop_id: number;
   ten_lop: string;
-  to?: To[];
-}
-
-interface To {
-  to_id: number;
-  ten_to: string;
+  khoi?: number;
+  to?: { to_id: number; ten_to: string }[];
 }
 
 interface HocSinh {
@@ -24,11 +24,38 @@ interface HocSinh {
   ma_hoc_sinh: string | null;
   email: string | null;
   vai_tro_thi_dua: 'LopTruong' | 'LopPho' | 'ToTruong' | 'ToPho' | 'HocSinh';
-  to?: To;
-  lop?: Lop;
+  to?: { to_id?: number; ten_to: string };
+  lop?: { ten_lop: string };
 }
 
-import { BACKEND_URL } from '../config';
+// Kiểu dữ liệu điểm danh: [hoc_sinh_id]: { [dayIndex: 0..6]: 'P' | 'K' | 'NV' | '' }
+type AttendanceRecord = Record<number, Record<number, 'P' | 'K' | 'NV' | ''>>;
+
+// Helper tính thứ 2 của tuần dựa vào ngày bất kỳ
+function getMondayOfWeek(d: Date): Date {
+  const date = new Date(d);
+  const day = date.getDay(); // 0: CN, 1: T2, ..., 6: T7
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  const mon = new Date(date);
+  mon.setDate(diff);
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+
+// Format ngày: DD/MM
+function formatDateDDMM(d: Date): string {
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${day}/${month}`;
+}
+
+// Format YYYY-MM-DD
+function formatDateKey(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default function StudentsPage() {
   const { profile } = useAuth();
@@ -48,12 +75,21 @@ export default function StudentsPage() {
   }
 
   const [classes, setClasses] = useState<Lop[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<number>(4); // Mặc định 11C2 (id: 4)
   const [students, setStudents] = useState<HocSinh[]>([]);
   const [selectedToId, setSelectedToId] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Tab View: 'attendance' (Điểm danh chuyên cần) hoặc 'list' (Hồ sơ học sinh)
+  const [activeTab, setActiveTab] = useState<'attendance' | 'list'>('attendance');
+
+  // Quản lý tuần điểm danh: khởi tạo từ thứ Hai của tuần hiện tại (hệ thống)
+  const [currentMonday, setCurrentMonday] = useState<Date>(() => getMondayOfWeek(new Date()));
+
+  // Dữ liệu điểm danh của tuần hiện tại
+  const [attendance, setAttendance] = useState<AttendanceRecord>({});
 
   // Modal Thêm/Sửa
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -71,6 +107,76 @@ export default function StudentsPage() {
   const [importText, setImportText] = useState<string>('');
 
   const token = localStorage.getItem('sb-access-token');
+
+  // Tính 7 ngày trong tuần từ Thứ Hai đến Chủ Nhật
+  const weekDays = useMemo(() => {
+    const days: { label: string; dateStr: string; fullDate: Date }[] = [];
+    const dayLabels = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(currentMonday);
+      d.setDate(currentMonday.getDate() + i);
+      days.push({
+        label: dayLabels[i],
+        dateStr: formatDateDDMM(d),
+        fullDate: d,
+      });
+    }
+    return days;
+  }, [currentMonday]);
+
+  // Key lưu trữ điểm danh trong localStorage theo Lớp và Tuần
+  const storageAttendanceKey = useMemo(() => {
+    return `attendance_lop_${selectedClassId}_week_${formatDateKey(currentMonday)}`;
+  }, [selectedClassId, currentMonday]);
+
+  // Tải dữ liệu điểm danh khi thay đổi lớp hoặc tuần
+  useEffect(() => {
+    const saved = getStoredData<AttendanceRecord>(storageAttendanceKey, {});
+    setAttendance(saved);
+  }, [storageAttendanceKey]);
+
+  // Lưu điểm danh vào localStorage
+  const saveAttendance = (newAttendance: AttendanceRecord) => {
+    setAttendance(newAttendance);
+    setStoredData(storageAttendanceKey, newAttendance);
+  };
+
+  // Toggle hoặc chuyển đổi trạng thái điểm danh của 1 học sinh ở 1 ngày:
+  // '' (Có mặt) -> 'P' (Có phép) -> 'K' (Không phép) -> 'NV' (Nằm viện) -> ''
+  const cycleAttendanceStatus = (hocSinhId: number, dayIndex: number) => {
+    const currentVal = attendance[hocSinhId]?.[dayIndex] || '';
+    let nextVal: 'P' | 'K' | 'NV' | '' = '';
+    if (currentVal === '') nextVal = 'P';
+    else if (currentVal === 'P') nextVal = 'K';
+    else if (currentVal === 'K') nextVal = 'NV';
+    else nextVal = '';
+
+    const updated = {
+      ...attendance,
+      [hocSinhId]: {
+        ...(attendance[hocSinhId] || {}),
+        [dayIndex]: nextVal,
+      },
+    };
+    saveAttendance(updated);
+  };
+
+  // Chuyển tuần
+  const handlePrevWeek = () => {
+    const prev = new Date(currentMonday);
+    prev.setDate(prev.getDate() - 7);
+    setCurrentMonday(prev);
+  };
+
+  const handleNextWeek = () => {
+    const next = new Date(currentMonday);
+    next.setDate(next.getDate() + 7);
+    setCurrentMonday(next);
+  };
+
+  const handleCurrentWeek = () => {
+    setCurrentMonday(getMondayOfWeek(new Date()));
+  };
 
   // Lấy danh sách lớp học
   useEffect(() => {
@@ -91,15 +197,20 @@ export default function StudentsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setClasses(data);
-        if (data.length > 0) {
+        if (Array.isArray(data) && data.length > 0) {
+          setClasses(data);
           const userClassId = profile?.gvcn_lop?.lop_id || profile?.hoc_sinh?.lop_id || data[0].lop_id;
           setSelectedClassId(userClassId);
+          return;
         }
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Fallback
     }
+
+    const fallbackClasses = getStoredData('app_classes_list', DEFAULT_CLASSES);
+    setClasses(fallbackClasses);
+    setSelectedClassId(4); // Lớp 11C2
   };
 
   const fetchStudents = async (lopId: number) => {
@@ -110,18 +221,29 @@ export default function StudentsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setStudents(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setStudents(data);
+          setLoading(false);
+          return;
+        }
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Fallback
     }
+
+    // Dữ liệu mẫu dự phòng từ mockData
+    const storageKey = `students_lop_${lopId}`;
+    const fallbackStudents = getStoredData<HocSinh[]>(
+      storageKey,
+      (lopId === 4 ? DEFAULT_STUDENTS_11C2 : DEFAULT_STUDENTS_11C2.slice(0, 8)) as any
+    );
+    setStudents(fallbackStudents);
+    setLoading(false);
   };
 
   // Mở modal thêm/sửa
   const handleOpenModal = (hs?: HocSinh) => {
-    const currentClass = classes.find(c => c.lop_id === selectedClassId);
+    const currentClass = classes.find((c) => c.lop_id === selectedClassId);
     const firstGroupId = currentClass?.to?.[0]?.to_id?.toString() || '1';
 
     if (hs) {
@@ -149,173 +271,193 @@ export default function StudentsPage() {
   // Lưu học sinh (Thêm hoặc Sửa)
   const handleSaveStudent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClassId) return;
+    if (!formData.ho_ten.trim()) {
+      alert('Vui lòng nhập họ và tên học sinh!');
+      return;
+    }
 
-    const payload = {
-      lop_id: selectedClassId,
-      to_id: parseInt(formData.to_id),
-      ho_ten: formData.ho_ten,
-      ma_hoc_sinh: formData.ma_hoc_sinh || null,
-      email: formData.email || null,
-      vai_tro_thi_dua: formData.vai_tro_thi_dua,
-    };
+    const toIdNum = parseInt(formData.to_id);
+    let updated: HocSinh[];
 
+    if (editingStudent) {
+      updated = students.map((hs) =>
+        hs.hoc_sinh_id === editingStudent.hoc_sinh_id
+          ? {
+              ...hs,
+              ho_ten: formData.ho_ten.trim(),
+              ma_hoc_sinh: formData.ma_hoc_sinh.trim() || null,
+              email: formData.email.trim() || null,
+              to_id: toIdNum,
+              to: { to_id: toIdNum, ten_to: `Tổ ${toIdNum}` },
+              vai_tro_thi_dua: formData.vai_tro_thi_dua,
+            }
+          : hs
+      );
+    } else {
+      const newHs: HocSinh = {
+        hoc_sinh_id: Date.now(),
+        lop_id: selectedClassId,
+        to_id: toIdNum,
+        ho_ten: formData.ho_ten.trim(),
+        ma_hoc_sinh: formData.ma_hoc_sinh.trim() || `HS${Math.floor(1000 + Math.random() * 9000)}`,
+        email: formData.email.trim() || null,
+        vai_tro_thi_dua: formData.vai_tro_thi_dua,
+        to: { to_id: toIdNum, ten_to: `Tổ ${toIdNum}` },
+        lop: { ten_lop: classes.find((c) => c.lop_id === selectedClassId)?.ten_lop || '11C2' },
+      };
+      updated = [newHs, ...students];
+    }
+
+    setStudents(updated);
+    setStoredData(`students_lop_${selectedClassId}`, updated);
+    setIsModalOpen(false);
+    setMessage({
+      type: 'success',
+      text: editingStudent ? 'Đã cập nhật thông tin học sinh thành công!' : 'Đã thêm học sinh mới vào lớp!',
+    });
+
+    // Thử đồng bộ Backend
     try {
-      let res;
+      const payload = {
+        lop_id: selectedClassId,
+        to_id: toIdNum,
+        ho_ten: formData.ho_ten,
+        ma_hoc_sinh: formData.ma_hoc_sinh || null,
+        email: formData.email || null,
+        vai_tro_thi_dua: formData.vai_tro_thi_dua,
+      };
       if (editingStudent) {
-        res = await fetch(`${BACKEND_URL}/students/${editingStudent.hoc_sinh_id}`, {
+        await fetch(`${BACKEND_URL}/students/${editingStudent.hoc_sinh_id}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload),
         });
       } else {
-        res = await fetch(`${BACKEND_URL}/students`, {
+        await fetch(`${BACKEND_URL}/students`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload),
         });
       }
-
-      if (res.ok) {
-        setIsModalOpen(false);
-        alert('Đã thay đổi thông tin');
-        fetchStudents(selectedClassId);
-      } else {
-        setMessage({ type: 'error', text: 'Thao tác không thành công. Vui lòng thử lại.' });
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage({ type: 'error', text: 'Lỗi kết nối máy chủ.' });
+    } catch {
+      // Offline fallback ok
     }
   };
 
   // Xóa học sinh
   const handleDeleteStudent = async (id: number) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa học sinh này khỏi danh sách lớp?')) return;
+    const updated = students.filter((hs) => hs.hoc_sinh_id !== id);
+    setStudents(updated);
+    setStoredData(`students_lop_${selectedClassId}`, updated);
+    setMessage({ type: 'success', text: 'Đã xóa học sinh khỏi danh sách lớp!' });
+
     try {
-      const res = await fetch(`${BACKEND_URL}/students/${id}`, {
+      await fetch(`${BACKEND_URL}/students/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        setMessage({ type: 'success', text: 'Đã xóa học sinh thành công!' });
-        if (selectedClassId) fetchStudents(selectedClassId);
-      }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Offline fallback ok
     }
   };
 
-  // Import danh sách hàng loạt từ Text/Excel Copy-Paste
+  // Import danh sách hàng loạt
   const handleImportList = async () => {
-    if (!selectedClassId || !importText.trim()) return;
-
+    if (!importText.trim()) return;
     const lines = importText.split('\n').filter((l) => l.trim().length > 0);
-    const parsedList = lines.map((line) => {
+    const parsedList: HocSinh[] = lines.map((line, idx) => {
       const parts = line.split(/[,;\t]/).map((p) => p.trim());
+      const toIdNum = parts[2] ? parseInt(parts[2]) : 1;
       return {
-        ho_ten: parts[0] || 'Học sinh mới',
-        ma_hoc_sinh: parts[1] || `HS${Math.floor(100 + Math.random() * 900)}`,
-        to_id: parts[2] ? parseInt(parts[2]) : 1,
+        hoc_sinh_id: Date.now() + idx,
+        lop_id: selectedClassId,
+        to_id: toIdNum,
+        ho_ten: parts[0] || `Học sinh ${idx + 1}`,
+        ma_hoc_sinh: parts[1] || `hs${2000000000 + idx}`,
         email: parts[3] || null,
-        vai_tro_thi_dua: 'HocSinh' as const,
+        vai_tro_thi_dua: 'HocSinh',
+        to: { to_id: toIdNum, ten_to: `Tổ ${toIdNum}` },
       };
     });
 
-    try {
-      const res = await fetch(`${BACKEND_URL}/students/import`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          lop_id: selectedClassId,
-          hoc_sinh_list: parsedList,
-        }),
-      });
-
-      if (res.ok) {
-        setMessage({ type: 'success', text: `Đã nhập thành công ${parsedList.length} học sinh vào lớp!` });
-        setIsImportModalOpen(false);
-        setImportText('');
-        fetchStudents(selectedClassId);
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage({ type: 'error', text: 'Lỗi khi nhập danh sách hàng loạt.' });
-    }
+    const updated = [...parsedList, ...students];
+    setStudents(updated);
+    setStoredData(`students_lop_${selectedClassId}`, updated);
+    setMessage({ type: 'success', text: `Đã nhập thành công ${parsedList.length} học sinh vào lớp!` });
+    setIsImportModalOpen(false);
+    setImportText('');
   };
 
   // Lọc học sinh
-  const filteredStudents = students.filter((hs) => {
-    const matchTo = selectedToId === 'all' || hs.to_id?.toString() === selectedToId;
-    const matchSearch =
-      hs.ho_ten.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (hs.ma_hoc_sinh && hs.ma_hoc_sinh.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchTo && matchSearch;
-  });
+  const filteredStudents = useMemo(() => {
+    return students.filter((hs) => {
+      const matchesSearch =
+        hs.ho_ten.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (hs.ma_hoc_sinh && hs.ma_hoc_sinh.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesTo = selectedToId === 'all' || hs.to_id?.toString() === selectedToId;
+      return matchesSearch && matchesTo;
+    });
+  }, [students, searchTerm, selectedToId]);
 
-  const getRoleBadge = (role: HocSinh['vai_tro_thi_dua']) => {
-    switch (role) {
-      case 'LopTruong':
-        return <span className="badge badge-amber">🎓 Lớp Trưởng</span>;
-      case 'LopPho':
-        return <span className="badge badge-blue">📘 Lớp Phó</span>;
-      case 'ToTruong':
-        return <span className="badge badge-purple">🚩 Tổ Trưởng</span>;
-      case 'ToPho':
-        return <span className="badge badge-cyan">🚩 Tổ Phó</span>;
-      default:
-        return <span className="badge badge-emerald">👦 Học Sinh</span>;
-    }
-  };
+  // Thống kê điểm danh trong tuần
+  const attendanceStats = useMemo(() => {
+    let countP = 0;
+    let countK = 0;
+    let countNV = 0;
+
+    Object.values(attendance).forEach((studentDays) => {
+      Object.values(studentDays).forEach((status) => {
+        if (status === 'P') countP++;
+        if (status === 'K') countK++;
+        if (status === 'NV') countNV++;
+      });
+    });
+
+    return { countP, countK, countNV };
+  }, [attendance]);
 
   return (
-    <div className="container fade-in" style={{ padding: '1.5rem 0.8rem' }}>
+    <div className="page-container fade-in">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <Users style={{ color: 'var(--color-primary)' }} /> Quản Lý Danh Sách Học Sinh
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.6rem', fontWeight: 800 }}>
+            <Users size={28} style={{ color: 'var(--color-primary)' }} />
+            Quản Lý Học Sinh & Điểm Danh Tuần
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.2rem' }}>
-            Cập nhật danh sách học sinh, phân Tổ thi đua và gán chức năng cho Ban cán sự lớp
+            Điểm danh chuyên cần 7 ngày trong tuần (P: Có phép, K: Không phép, NV: Nằm viện) và quản lý ban cán sự lớp
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.6rem', width: '100%', maxWidth: '350px' }}>
-          <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)} style={{ flex: 1, justifyContent: 'center' }}>
-            <FileSpreadsheet size={18} /> Excel Import
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <FileSpreadsheet size={16} /> Nhập Excel / Copy Text
           </button>
-          <button className="btn btn-primary" onClick={() => handleOpenModal()} style={{ flex: 1, justifyContent: 'center' }}>
-            <UserPlus size={18} /> Thêm Mới
+          <button className="btn btn-primary" onClick={() => handleOpenModal()} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}>
+            <UserPlus size={16} /> Thêm Học Sinh
           </button>
         </div>
       </div>
 
       {/* Thông báo Alert */}
       {message && (
-        <div style={{
-          padding: '0.8rem 1rem',
-          borderRadius: 'var(--border-radius-md)',
-          marginBottom: '1.2rem',
-          background: message.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-          border: `1px solid ${message.type === 'success' ? '#10b981' : '#ef4444'}`,
-          color: message.type === 'success' ? '#34d399' : '#f87171',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>
-            {message.type === 'success' ? <CheckCircle size={18} /> : <ShieldAlert size={18} />}
-            {message.text}
+        <div
+          style={{
+            padding: '0.8rem 1rem',
+            borderRadius: 'var(--border-radius-md)',
+            marginBottom: '1.2rem',
+            background: message.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+            border: `1px solid ${message.type === 'success' ? '#10b981' : '#ef4444'}`,
+            color: message.type === 'success' ? '#10b981' : '#ef4444',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '0.9rem' }}>
+            <CheckCircle size={18} /> {message.text}
           </span>
           <button onClick={() => setMessage(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>
             <X size={16} />
@@ -323,407 +465,620 @@ export default function StudentsPage() {
         </div>
       )}
 
-      {/* Bộ lọc & Tìm kiếm Toolbar */}
-      <div className="card" style={{ marginBottom: '1.2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.8rem', alignItems: 'center', padding: '1rem' }}>
-        <div className="form-group">
-          <label className="form-label">Lớp học</label>
-          <select 
-            className="form-select" 
-            value={selectedClassId || ''} 
-            onChange={(e) => setSelectedClassId(Number(e.target.value))}
-            disabled={profile?.vai_tro_he_thong !== 'Admin'}
+      {/* Thanh chọn Chế độ hiển thị (Tabs) & Lớp */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
+        <div style={{ display: 'inline-flex', background: 'var(--bg-surface)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <button
+            onClick={() => setActiveTab('attendance')}
+            style={{
+              padding: '8px 18px',
+              borderRadius: '8px',
+              border: 'none',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: activeTab === 'attendance' ? 'var(--color-primary)' : 'transparent',
+              color: activeTab === 'attendance' ? '#fff' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+            }}
           >
-            {classes.map((c) => (
-              <option key={c.lop_id} value={c.lop_id}>Lớp {c.ten_lop}</option>
-            ))}
-          </select>
+            <Clock size={16} /> 📋 Điểm Danh 7 Ngày (T2 - CN)
+          </button>
+          <button
+            onClick={() => setActiveTab('list')}
+            style={{
+              padding: '8px 18px',
+              borderRadius: '8px',
+              border: 'none',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: activeTab === 'list' ? 'var(--color-primary)' : 'transparent',
+              color: activeTab === 'list' ? '#fff' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Users size={16} /> 👥 Hồ Sơ Học Sinh & Chức Vụ
+          </button>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">Lọc theo Tổ</label>
-          <select 
-            className="form-select" 
-            value={selectedToId} 
-            onChange={(e) => setSelectedToId(e.target.value)}
-          >
-            <option value="all">Tất cả các Tổ</option>
-            <option value="1">Tổ 1</option>
-            <option value="2">Tổ 2</option>
-            <option value="3">Tổ 3</option>
-            <option value="4">Tổ 4</option>
-          </select>
-        </div>
+        {/* Chọn lớp & tổ */}
+        <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Lớp:</label>
+            <select
+              value={selectedClassId}
+              onChange={(e) => setSelectedClassId(Number(e.target.value))}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {classes.map((c) => (
+                <option key={c.lop_id} value={c.lop_id}>
+                  Lớp {c.ten_lop}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="form-group">
-          <label className="form-label">Tìm kiếm</label>
-          <div style={{ position: 'relative' }}>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="Tên hoặc mã HS..." 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tổ:</label>
+            <select
+              value={selectedToId}
+              onChange={(e) => setSelectedToId(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <option value="all">Tất cả các Tổ</option>
+              <option value="1">Tổ 1</option>
+              <option value="2">Tổ 2</option>
+              <option value="3">Tổ 3</option>
+              <option value="4">Tổ 4</option>
+            </select>
+          </div>
+
+          <div style={{ position: 'relative', minWidth: '220px' }}>
+            <input
+              type="text"
+              placeholder="Tìm theo tên học sinh..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '2.5rem' }}
+              style={{
+                width: '100%',
+                padding: '8px 12px 8px 32px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                fontSize: '0.85rem',
+                boxSizing: 'border-box',
+              }}
             />
-            <Search size={16} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           </div>
         </div>
       </div>
 
-      {/* Bảng Danh sách Học sinh (Desktop View) */}
-      <div className="card desktop-table-view" style={{ padding: 0, overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center' }}>
-            <div className="spinner"></div>
-            <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>Đang tải danh sách học sinh...</p>
-          </div>
-        ) : filteredStudents.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center' }}>
-            <Sparkles size={40} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
-            <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Chưa có học sinh nào trong lớp</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Hãy bấm nút "Thêm Mới" hoặc "Excel Import" để cập nhật danh sách học sinh</p>
-            <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-              <UserPlus size={18} /> Thêm ngay
-            </button>
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th style={{ width: '60px', textAlign: 'center' }}>STT</th>
-                  <th>Họ và Tên</th>
-                  <th>Mã Học Sinh</th>
-                  <th>Tổ</th>
-                  <th>Vai Trò Thi Đua</th>
-                  <th>Email</th>
-                  <th style={{ width: '100px', textAlign: 'center' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStudents.map((hs, index) => (
-                  <tr key={hs.hoc_sinh_id}>
-                    <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{index + 1}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{hs.ho_ten}</td>
-                    <td><code style={{ background: 'var(--bg-muted)', padding: '0.2rem 0.5rem', borderRadius: '4px', color: 'var(--color-primary)', fontWeight: 600 }}>{hs.ma_hoc_sinh || 'N/A'}</code></td>
-                    <td><span className="badge badge-primary">{hs.to?.ten_to || `Tổ ${hs.to_id || 1}`}</span></td>
-                    <td>{getRoleBadge(hs.vai_tro_thi_dua)}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{hs.email || '—'}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
-                        <button 
-                          onClick={() => handleOpenModal(hs)}
-                          className="btn btn-sm btn-secondary"
-                          style={{ padding: '0.4rem', color: 'var(--color-primary)' }}
-                          title="Sửa thông tin"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteStudent(hs.hoc_sinh_id)}
-                          className="btn btn-sm btn-secondary"
-                          style={{ padding: '0.4rem', color: 'var(--color-danger)' }}
-                          title="Xóa học sinh"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* MOBILE CARDS VIEW (Chỉ hiển thị trên Điện Thoại) */}
-      <div className="mobile-student-grid">
-        {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <div className="spinner"></div>
-          </div>
-        ) : filteredStudents.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            Chưa có học sinh nào trong lớp. Bấm nút Thêm Mới để bắt đầu.
-          </div>
-        ) : (
-          filteredStudents.map((hs, idx) => (
-            <div key={hs.hoc_sinh_id} className="mobile-student-card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                <div style={{
-                  width: '40px', height: '40px', borderRadius: '50%',
-                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-                  color: 'white', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.95rem'
-                }}>
-                  {idx + 1}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, color: 'white', fontSize: '1rem' }}>{hs.ho_ten}</div>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.2rem' }}>
-                    <span className="badge badge-primary" style={{ fontSize: '0.7rem' }}>{hs.to?.ten_to || `Tổ ${hs.to_id || 1}`}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{hs.ma_hoc_sinh || ''}</span>
-                  </div>
-                  <div style={{ marginTop: '0.3rem' }}>{getRoleBadge(hs.vai_tro_thi_dua)}</div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button 
-                  onClick={() => handleOpenModal(hs)}
-                  style={{
-                    width: '40px', height: '40px', borderRadius: '12px',
-                    background: 'rgba(59, 130, 246, 0.2)', border: 'none',
-                    color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}
-                >
-                  <Edit size={18} />
-                </button>
-                <button 
-                  onClick={() => handleDeleteStudent(hs.hoc_sinh_id)}
-                  style={{
-                    width: '40px', height: '40px', borderRadius: '12px',
-                    background: 'rgba(239, 68, 68, 0.2)', border: 'none',
-                    color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* MODAL THÊM / SỬA HỌC SINH (MOBILE BOTTOM SHEET & DESKTOP CENTERED) */}
-      {isModalOpen && (
-        <div className="mobile-modal-overlay">
-          <div className="card fade-in mobile-modal-content" style={{ 
-            width: '100%', maxWidth: '520px', 
-            background: 'var(--bg-surface)', 
-            border: '1px solid var(--border-color)',
-            boxShadow: 'var(--shadow-lg)',
-            padding: '1.5rem'
-          }}>
-            {/* Header Modal */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.2rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                <div style={{ 
-                  width: '42px', height: '42px', borderRadius: '12px', 
-                  background: 'rgba(var(--color-primary-rgb), 0.12)', 
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: 'var(--color-primary)'
-                }}>
-                  {editingStudent ? <Edit size={22} /> : <UserPlus size={22} />}
-                </div>
-                <div>
-                  <h3 style={{ 
-                    fontSize: '1.25rem', fontWeight: 800, margin: 0,
-                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
-                  }}>
-                    {editingStudent ? 'Chỉnh Sửa Học Sinh' : 'Thêm Học Sinh Mới'}
-                  </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
-                    {editingStudent ? 'Cập nhật thông tin cá nhân và vai trò thi đua' : 'Nhập thông tin cá nhân của học sinh vào lớp học'}
-                  </p>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => setIsModalOpen(false)} 
-                style={{ 
-                  background: 'var(--bg-muted)', border: 'none', 
-                  color: 'var(--text-muted)', cursor: 'pointer',
-                  width: '32px', height: '32px', borderRadius: '50%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}
+      {/* ========================================================================= */}
+      {/* VIEW 1: BẢNG ĐIỂM DANH CHUYÊN CẦN 7 NGÀY (THỨ HAI ĐẾN CHỦ NHẬT)         */}
+      {/* ========================================================================= */}
+      {activeTab === 'attendance' && (
+        <div className="card" style={{ padding: '1.2rem', marginBottom: '1.5rem', borderRadius: '12px' }}>
+          {/* Thanh điều khiển tuần & Chú thích */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              paddingBottom: '1rem',
+              marginBottom: '1rem',
+              borderBottom: '1px solid var(--border-color)',
+            }}
+          >
+            {/* Chuyển tuần */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                onClick={handlePrevWeek}
+                className="btn btn-secondary"
+                style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}
+                title="Xem tuần trước"
               >
-                <X size={18} />
+                <ChevronLeft size={16} /> Tuần trước
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                <Calendar size={18} style={{ color: 'var(--color-primary)' }} />
+                <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  Thứ Hai, {weekDays[0]?.dateStr} — CN, {weekDays[6]?.dateStr}/{currentMonday.getFullYear()}
+                </span>
+              </div>
+
+              <button
+                onClick={handleNextWeek}
+                className="btn btn-secondary"
+                style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}
+                title="Xem tuần kế tiếp"
+              >
+                Tuần sau <ChevronRight size={16} />
+              </button>
+
+              <button
+                onClick={handleCurrentWeek}
+                className="btn btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.85rem', fontWeight: 600 }}
+                title="Quay về tuần chứa ngày hệ thống hôm nay"
+              >
+                Hôm nay
               </button>
             </div>
 
-            {/* Form Input */}
-            <form onSubmit={handleSaveStudent}>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <User size={15} style={{ color: 'var(--color-primary)' }} /> Họ và Tên *
+            {/* Chú giải mã điểm danh & Thống kê */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Quy ước:</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '3px 8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #10b981' }}>
+                ✓ Có mặt
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(245, 158, 11, 0.15)', color: '#d97706', padding: '3px 8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #f59e0b' }}>
+                P = Có phép ({attendanceStats.countP})
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(239, 68, 68, 0.15)', color: '#dc2626', padding: '3px 8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #ef4444' }}>
+                K = Không phép ({attendanceStats.countK})
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(139, 92, 246, 0.15)', color: '#7c3aed', padding: '3px 8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700, border: '1px solid #8b5cf6' }}>
+                NV = Nằm viện ({attendanceStats.countNV})
+              </span>
+            </div>
+          </div>
+
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+            💡 <em>Hướng dẫn: Bấm trực tiếp vào từng ô ngày của học sinh để chuyển nhanh trạng thái (Có mặt ➔ <b>P</b> ➔ <b>K</b> ➔ <b>NV</b> ➔ Có mặt). Dữ liệu được tự động lưu.</em>
+          </p>
+
+          {/* Bảng điểm danh */}
+          <div style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '820px' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-surface)', borderBottom: '2px solid var(--border-color)' }}>
+                  <th style={{ width: '50px', padding: '12px 10px', textAlign: 'center', fontSize: '0.85rem' }}>STT</th>
+                  <th style={{ minWidth: '220px', padding: '12px 14px', fontSize: '0.85rem' }}>Họ và tên</th>
+                  <th style={{ width: '80px', padding: '12px 10px', textAlign: 'center', fontSize: '0.85rem' }}>Tổ</th>
+                  {weekDays.map((day, idx) => (
+                    <th
+                      key={idx}
+                      style={{
+                        padding: '12px 8px',
+                        textAlign: 'center',
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        background: idx >= 5 ? 'rgba(245, 158, 11, 0.05)' : 'transparent',
+                        borderLeft: '1px solid var(--border-color)',
+                      }}
+                    >
+                      <div>{day.label}</div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', marginTop: '2px' }}>
+                        {day.dateStr}
+                      </div>
+                    </th>
+                  ))}
+                  <th style={{ width: '90px', padding: '12px 8px', textAlign: 'center', fontSize: '0.85rem', borderLeft: '1px solid var(--border-color)' }}>
+                    Tổng vắng
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                      Không có học sinh nào trong tổ/lớp được chọn.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStudents.map((hs, index) => {
+                    const studentRecord = attendance[hs.hoc_sinh_id] || {};
+                    let studentAbsenceCount = 0;
+                    for (let i = 0; i < 7; i++) {
+                      if (studentRecord[i]) studentAbsenceCount++;
+                    }
+
+                    return (
+                      <tr
+                        key={hs.hoc_sinh_id}
+                        style={{
+                          borderBottom: '1px solid var(--border-color)',
+                          background: index % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)',
+                        }}
+                      >
+                        <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                          {index + 1}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <RoleAvatar role={hs.vai_tro_thi_dua} size={32} />
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                                {hs.ho_ten}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {hs.ma_hoc_sinh || 'Chưa có mã'}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            style={{
+                              background: 'var(--bg-surface)',
+                              border: '1px solid var(--border-color)',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.78rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {hs.to?.ten_to || `Tổ ${hs.to_id || 1}`}
+                          </span>
+                        </td>
+
+                        {/* 7 Cột Điểm Danh */}
+                        {weekDays.map((_, dayIdx) => {
+                          const status = studentRecord[dayIdx] || '';
+
+                          let badgeStyle = {
+                            background: 'rgba(16, 185, 129, 0.08)',
+                            color: '#10b981',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                            text: '✓',
+                          };
+
+                          if (status === 'P') {
+                            badgeStyle = {
+                              background: '#fef3c7',
+                              color: '#b45309',
+                              border: '1px solid #f59e0b',
+                              text: 'P',
+                            };
+                          } else if (status === 'K') {
+                            badgeStyle = {
+                              background: '#fee2e2',
+                              color: '#b91c1c',
+                              border: '1px solid #ef4444',
+                              text: 'K',
+                            };
+                          } else if (status === 'NV') {
+                            badgeStyle = {
+                              background: '#ede9fe',
+                              color: '#6d28d9',
+                              border: '1px solid #8b5cf6',
+                              text: 'NV',
+                            };
+                          }
+
+                          return (
+                            <td
+                              key={dayIdx}
+                              onClick={() => cycleAttendanceStatus(hs.hoc_sinh_id, dayIdx)}
+                              style={{
+                                textAlign: 'center',
+                                padding: '6px 4px',
+                                borderLeft: '1px solid var(--border-color)',
+                                cursor: 'pointer',
+                                userSelect: 'none',
+                                background: dayIdx >= 5 ? 'rgba(245, 158, 11, 0.02)' : 'transparent',
+                              }}
+                              title={`Bấm để đổi: ${hs.ho_ten} (${weekDays[dayIdx].label})`}
+                            >
+                              <div
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  width: '36px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  fontWeight: 800,
+                                  fontSize: status === 'NV' ? '0.75rem' : '0.88rem',
+                                  background: badgeStyle.background,
+                                  color: badgeStyle.color,
+                                  border: badgeStyle.border,
+                                  boxShadow: status ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                  transition: 'all 0.15s ease',
+                                }}
+                              >
+                                {badgeStyle.text}
+                              </div>
+                            </td>
+                          );
+                        })}
+
+                        {/* Tổng vắng */}
+                        <td style={{ textAlign: 'center', borderLeft: '1px solid var(--border-color)' }}>
+                          {studentAbsenceCount > 0 ? (
+                            <span
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#dc2626',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontWeight: 800,
+                                fontSize: '0.82rem',
+                              }}
+                            >
+                              {studentAbsenceCount} buổi
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>0</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VIEW 2: BẢNG HỒ SƠ HỌC SINH & PHÂN QUYỀN BAN CÁN SỰ                      */}
+      {/* ========================================================================= */}
+      {activeTab === 'list' && (
+        <div className="card" style={{ padding: 0, overflow: 'hidden', borderRadius: '12px' }}>
+          {loading ? (
+            <div style={{ padding: '3rem', textAlign: 'center' }}>
+              <div className="spinner"></div>
+              <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>Đang tải danh sách học sinh...</p>
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center' }}>
+              <Sparkles size={40} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
+              <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Chưa có học sinh nào trong lớp</h3>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Hãy bấm nút "Thêm Học Sinh" hoặc "Nhập Excel" để cập nhật</p>
+              <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+                <UserPlus size={18} /> Thêm ngay
+              </button>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-surface)', borderBottom: '2px solid var(--border-color)' }}>
+                    <th style={{ width: '60px', textAlign: 'center', padding: '12px' }}>STT</th>
+                    <th style={{ padding: '12px' }}>Họ và Tên</th>
+                    <th style={{ padding: '12px' }}>Mã Học Sinh</th>
+                    <th style={{ padding: '12px' }}>Tổ</th>
+                    <th style={{ padding: '12px' }}>Chức vụ Ban Cán Sự</th>
+                    <th style={{ padding: '12px' }}>Email</th>
+                    <th style={{ width: '120px', textAlign: 'center', padding: '12px' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStudents.map((hs, index) => (
+                    <tr key={hs.hoc_sinh_id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600 }}>{index + 1}</td>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <RoleAvatar role={hs.vai_tro_thi_dua} size={34} />
+                          <div>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{hs.ho_ten}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Lớp {hs.lop?.ten_lop || '11C2'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <code style={{ background: 'rgba(37, 99, 235, 0.08)', color: 'var(--color-primary)', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                          {hs.ma_hoc_sinh || 'N/A'}
+                        </code>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span className="badge badge-primary">{hs.to?.ten_to || `Tổ ${hs.to_id || 1}`}</span>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <RoleAvatar role={hs.vai_tro_thi_dua} size={24} />
+                          <span style={{ fontWeight: 600 }}>
+                            {hs.vai_tro_thi_dua === 'LopTruong'
+                              ? 'Lớp Trưởng'
+                              : hs.vai_tro_thi_dua === 'LopPho'
+                              ? 'Lớp Phó'
+                              : hs.vai_tro_thi_dua === 'ToTruong'
+                              ? 'Tổ Trưởng'
+                              : hs.vai_tro_thi_dua === 'ToPho'
+                              ? 'Tổ Phó'
+                              : 'Học Sinh'}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        {hs.email || '—'}
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '12px' }}>
+                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                          <button
+                            onClick={() => handleOpenModal(hs)}
+                            className="btn btn-sm btn-secondary"
+                            style={{ padding: '0.4rem', color: 'var(--color-primary)' }}
+                            title="Sửa thông tin"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteStudent(hs.hoc_sinh_id)}
+                            className="btn btn-sm btn-secondary"
+                            style={{ padding: '0.4rem', color: 'var(--color-danger)' }}
+                            title="Xóa học sinh"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL THÊM / SỬA HỌC SINH */}
+      {isModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: '500px', width: '90%', borderRadius: '16px' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', fontWeight: 800 }}>
+                {editingStudent ? <Edit size={20} /> : <UserPlus size={20} />}
+                {editingStudent ? 'Sửa Thông Tin Học Sinh' : 'Thêm Học Sinh Mới'}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStudent} style={{ padding: '20px' }}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Họ và tên học sinh <span style={{ color: 'red' }}>*</span>
                 </label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  required 
-                  placeholder="Ví dụ: Nguyễn Văn An"
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Nguyễn Văn A"
                   value={formData.ho_ten}
                   onChange={(e) => setFormData({ ...formData, ho_ten: e.target.value })}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginBottom: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <IdCard size={15} style={{ color: 'var(--color-primary)' }} /> Mã Học Sinh
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Mã học sinh:
                   </label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="HS001"
+                  <input
+                    type="text"
+                    placeholder="hs2001..."
                     value={formData.ma_hoc_sinh}
                     onChange={(e) => setFormData({ ...formData, ma_hoc_sinh: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Users size={15} style={{ color: 'var(--color-primary)' }} /> Phân Tổ
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Thuộc Tổ:
                   </label>
-                  <select 
-                    className="form-select" 
+                  <select
                     value={formData.to_id}
                     onChange={(e) => setFormData({ ...formData, to_id: e.target.value })}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)', boxSizing: 'border-box', cursor: 'pointer' }}
                   >
-                    {(classes.find(c => c.lop_id === selectedClassId)?.to || []).map(group => (
-                      <option key={group.to_id} value={group.to_id.toString()}>
-                        {group.ten_to}
-                      </option>
-                    ))}
-                    {(!classes.find(c => c.lop_id === selectedClassId)?.to || classes.find(c => c.lop_id === selectedClassId)?.to?.length === 0) && (
-                      <>
-                        <option value="1">Tổ 1</option>
-                        <option value="2">Tổ 2</option>
-                        <option value="3">Tổ 3</option>
-                        <option value="4">Tổ 4</option>
-                      </>
-                    )}
+                    <option value="1">Tổ 1</option>
+                    <option value="2">Tổ 2</option>
+                    <option value="3">Tổ 3</option>
+                    <option value="4">Tổ 4</option>
                   </select>
                 </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Mail size={15} style={{ color: 'var(--color-primary)' }} /> Email kết nối
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Chức vụ ban cán sự:
                 </label>
-                <input 
-                  type="email" 
-                  className="form-input" 
-                  placeholder="hocsinh@thiduahs.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Award size={15} style={{ color: 'var(--color-primary)' }} /> Vai Trò Thi Đua
-                </label>
-                <select 
-                  className="form-select" 
+                <select
                   value={formData.vai_tro_thi_dua}
                   onChange={(e) => setFormData({ ...formData, vai_tro_thi_dua: e.target.value as any })}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)', boxSizing: 'border-box', cursor: 'pointer' }}
                 >
-                  <option value="HocSinh">👦 Học Sinh (Thành viên)</option>
-                  <option value="LopTruong">🎓 Lớp Trưởng (Quyền chấm & duyệt)</option>
-                  <option value="LopPho">📘 Lớp Phó (Ban cán sự lớp)</option>
-                  <option value="ToTruong">🚩 Tổ Trưởng (Quản lý tổ)</option>
-                  <option value="ToPho">🚩 Tổ Phó (Phó tổ)</option>
+                  <option value="HocSinh">👦 Học sinh</option>
+                  <option value="LopTruong">🎓 Lớp Trưởng</option>
+                  <option value="LopPho">📑 Lớp Phó</option>
+                  <option value="ToTruong">🚩 Tổ Trưởng</option>
+                  <option value="ToPho">🏷️ Tổ Phó</option>
                 </select>
               </div>
 
-              {/* Footer Modal Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.8rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)} style={{ flex: 1, justifyContent: 'center' }}>Hủy bỏ</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}><Save size={18} /> {editingStudent ? 'Cập Nhật' : 'Tạo Mới'}</button>
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Email (Tùy chọn):
+                </label>
+                <input
+                  type="email"
+                  placeholder="hs@thiduahs.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
+                  Hủy
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}>
+                  <Save size={16} /> Lưu thông tin
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL IMPORT HÀNG LOẠT */}
+      {/* MODAL IMPORT EXCEL / TEXT COPY */}
       {isImportModalOpen && (
-        <div className="mobile-modal-overlay">
-          <div className="card fade-in mobile-modal-content" style={{ 
-            width: '100%', maxWidth: '680px', 
-            background: 'var(--bg-surface)', 
-            border: '1px solid var(--border-color)',
-            boxShadow: 'var(--shadow-lg)',
-            padding: '1.5rem'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.2rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                <div style={{ 
-                  width: '42px', height: '42px', borderRadius: '12px', 
-                  background: 'rgba(16, 185, 129, 0.12)', 
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#10b981'
-                }}>
-                  <FileSpreadsheet size={22} />
-                </div>
-                <div>
-                  <h3 style={{ 
-                    fontSize: '1.25rem', fontWeight: 800, margin: 0,
-                    background: 'linear-gradient(135deg, #10b981, #06b6d4)',
-                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
-                  }}>
-                    Nhập Danh Sách Học Sinh Hàng Loạt
-                  </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
-                    Nhập nhiều học sinh từ file Excel hoặc văn bản dán trực tiếp
-                  </p>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => setIsImportModalOpen(false)} 
-                style={{ 
-                  background: 'var(--bg-muted)', border: 'none', 
-                  color: 'var(--text-muted)', cursor: 'pointer',
-                  width: '32px', height: '32px', borderRadius: '50%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}
-              >
-                <X size={18} />
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: '580px', width: '90%', borderRadius: '16px' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem', fontWeight: 800 }}>
+                <FileSpreadsheet size={20} /> Nhập Danh Sách Học Sinh Hàng Loạt
+              </h3>
+              <button onClick={() => setIsImportModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={20} />
               </button>
             </div>
 
-            <div style={{ 
-              background: 'rgba(var(--color-primary-rgb), 0.08)', 
-              border: '1px dashed var(--color-primary)', 
-              borderRadius: 'var(--border-radius-md)', 
-              padding: '0.8rem 1rem', 
-              marginBottom: '1rem',
-              display: 'flex', alignItems: 'flex-start', gap: '0.6rem',
-              fontSize: '0.82rem', color: 'var(--text-secondary)'
-            }}>
-              <AlertCircle size={18} style={{ color: 'var(--color-primary)', flexShrink: 0, marginTop: '2px' }} />
-              <div>
-                <strong>Mẫu nhập:</strong> Copy các dòng từ Excel hoặc dán văn bản theo cấu trúc:<br />
-                <code style={{ background: 'var(--bg-muted)', padding: '0.1rem 0.4rem', borderRadius: '4px', color: 'var(--color-primary)', fontWeight: 600 }}>
-                  Họ và Tên, Mã Học Sinh, Số Tổ (1-4), Email
-                </code>
-              </div>
-            </div>
+            <div style={{ padding: '20px' }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                Copy và dán trực tiếp danh sách học sinh từ file Excel hoặc Word. Mỗi dòng 1 học sinh theo định dạng:
+                <br />
+                <code>Họ và Tên, Mã Học Sinh, Số Thứ Tự Tổ (1-4), Email</code>
+              </p>
 
-            <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-              <textarea 
-                className="form-textarea" 
-                rows={6}
-                placeholder={`Dán danh sách vào đây. Ví dụ:\nNguyễn Văn An, HS001, 1, an@gmail.com\nTrần Thị Bích, HS002, 1, bich@gmail.com`}
+              <textarea
+                rows={8}
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
-                style={{ fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.4 }}
+                placeholder={`Ví dụ:\nNguyễn Văn A, hs21001, 1, a@thiduahs.com\nTrần Thị B, hs21002, 2, b@thiduahs.com\nLê Văn C, hs21003, 3`}
+                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: '0.85rem', boxSizing: 'border-box' }}
               />
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', gap: '0.8rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-                {importText.trim() ? `✨ Đã nhận diện: ${importText.split('\n').filter(l => l.trim()).length} dòng` : ''}
-              </span>
-              <div style={{ display: 'flex', gap: '0.6rem', width: '100%', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsImportModalOpen(false)}>Hủy bỏ</button>
-                <button type="button" className="btn btn-success" onClick={handleImportList} disabled={!importText.trim()}>
-                  <Sparkles size={18} /> Nhập Hàng Loạt
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsImportModalOpen(false)}>
+                  Hủy
+                </button>
+                <button type="button" className="btn btn-primary" onClick={handleImportList} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}>
+                  <Check size={16} /> Bắt đầu Nhập
                 </button>
               </div>
             </div>

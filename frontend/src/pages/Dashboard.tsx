@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Award, AlertTriangle, UserCheck, TrendingUp, History, HelpCircle, Trophy } from 'lucide-react';
 import { BACKEND_URL } from '../config';
+import RoleAvatar from '../components/RoleAvatar';
+import { DEFAULT_STUDENTS_11C2, DEFAULT_GRADE_RECORDS, getStoredData } from '../lib/mockData';
 
 interface LichSu {
   lich_su_id: string;
@@ -57,71 +59,105 @@ export default function Dashboard() {
   const fetchDashboardData = useCallback(async () => {
     if (!profile) return;
     setIsLoading(true);
+    const lopId = profile.gvcn_lop?.lop_id || profile.hoc_sinh?.lop_id || 4;
+    const currentWeek = getTuanThu(new Date());
+
     try {
       const token = localStorage.getItem('sb-access-token');
-      const lopId = profile.gvcn_lop?.lop_id || profile.hoc_sinh?.lop_id;
 
       // 1. Lấy lịch sử chấm điểm thi đua
       let url = `${BACKEND_URL}/emulation/history`;
       if (!isAdmin) {
         if (profile.hoc_sinh && profile.hoc_sinh.vai_tro_thi_dua === 'HocSinh') {
-          // Học sinh thường chỉ xem của bản thân
           url += `?hoc_sinh_id=${profile.hoc_sinh.hoc_sinh_id}`;
         } else if (lopId) {
-          // GVCN, Lớp trưởng, Tổ trưởng xem của cả lớp
           url += `?lop_id=${lopId}`;
         }
       }
-      
+
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res.ok) {
         const data = await res.json();
-        setHistory(data.slice(0, 15)); // Lấy 15 ghi nhận mới nhất
-
-        // Tính toán thống kê cá nhân (nếu là Học sinh)
-        if (profile.hoc_sinh) {
-          let cong = 0;
-          let tru = 0;
-          const currentWeek = getTuanThu(new Date());
-          
-          data.forEach((item: any) => {
-            if (item.trang_thai === 'HieuLuc' && item.tuan_thu === currentWeek) {
-              if (item.tieu_chi.loai === 'Cong') {
-                cong += Number(item.so_diem_thuc_te);
-              } else {
-                tru += Number(item.so_diem_thuc_te);
+        if (Array.isArray(data) && data.length > 0) {
+          setHistory(data.slice(0, 15));
+          if (profile.hoc_sinh) {
+            let cong = 0;
+            let tru = 0;
+            data.forEach((item: any) => {
+              if (item.trang_thai === 'HieuLuc' && item.tuan_thu === currentWeek) {
+                if (item.tieu_chi.loai === 'Cong') cong += Number(item.so_diem_thuc_te);
+                else tru += Number(item.so_diem_thuc_te);
               }
-            }
-          });
-          
-          setStats({
-            diemHienTai: 100 + cong - tru,
-            tongCong: cong,
-            tongTru: tru,
-            viPhamPhoBien: data.find((item: any) => item.tieu_chi.loai === 'Tru')?.tieu_chi.ten_tieu_chi || 'Không có',
-          });
+            });
+            setStats({
+              diemHienTai: 100 + cong - tru,
+              tongCong: cong,
+              tongTru: tru,
+              viPhamPhoBien: data.find((item: any) => item.tieu_chi.loai === 'Tru')?.tieu_chi.ten_tieu_chi || 'Không có',
+            });
+          }
         }
       }
-
-      // 2. Lấy bảng điểm thời gian thực của lớp học
-      if (lopId) {
-        const currentWeek = getTuanThu(new Date());
-        const rankRes = await fetch(`${BACKEND_URL}/emulation/reports/realtime-weekly?lop_id=${lopId}&tuan_thu=${currentWeek}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (rankRes.ok) {
-          const rankData = await rankRes.json();
-          setRealtimeRanking(rankData);
-        }
-      }
-    } catch (err) {
-      console.error('Lỗi khi tải dữ liệu dashboard:', err);
-    } finally {
-      setIsLoading(false);
+    } catch {
+      // fallback handled below
     }
+
+    // Fallback lịch sử từ mockData
+    const storedHistory = getStoredData<any[]>('app_grade_records', DEFAULT_GRADE_RECORDS as any);
+    setHistory(storedHistory);
+
+    // Tính toán thống kê từ storedHistory
+    let myCong = 0;
+    let myTru = 0;
+    const myName = profile.ho_ten;
+    storedHistory.forEach((item: any) => {
+      if (item.trang_thai !== 'BiHuy' && (!profile.hoc_sinh || item.hoc_sinh?.ho_ten === myName)) {
+        if (item.tieu_chi?.loai === 'Cong') myCong += Number(item.so_diem_thuc_te || 0);
+        else myTru += Number(item.so_diem_thuc_te || 0);
+      }
+    });
+
+    setStats({
+      diemHienTai: 100 + myCong - myTru,
+      tongCong: myCong,
+      tongTru: myTru,
+      viPhamPhoBien: storedHistory.find((item: any) => item.tieu_chi?.loai === 'Tru')?.tieu_chi?.ten_tieu_chi || 'Không có',
+    });
+
+    // Fallback bảng xếp hạng thời gian thực của lớp
+    const fallbackStudents = getStoredData<any[]>(`students_lop_${lopId}`, DEFAULT_STUDENTS_11C2);
+    const rankList: RealtimeRank[] = fallbackStudents.map((hs) => {
+      const studentRecs = storedHistory.filter(
+        (r) => r.hoc_sinh?.ho_ten === hs.ho_ten && r.trang_thai !== 'BiHuy'
+      );
+      let cong = 0;
+      let tru = 0;
+      studentRecs.forEach((r) => {
+        const pts = parseFloat(r.so_diem_thuc_te) || 0;
+        if (r.tieu_chi?.loai === 'Cong') cong += pts;
+        else tru += pts;
+      });
+
+      return {
+        hoc_sinh: {
+          hoc_sinh_id: hs.hoc_sinh_id,
+          ho_ten: hs.ho_ten,
+          ma_hoc_sinh: hs.ma_hoc_sinh || '',
+          to_id: hs.to_id || 1,
+          to: { to_id: hs.to_id || 1, ten_to: hs.to?.ten_to || `Tổ ${hs.to_id || 1}` },
+        },
+        diem_cuoi_cung: 100 + cong - tru,
+        tong_diem_cong: cong,
+        tong_diem_tru: tru,
+      };
+    });
+
+    rankList.sort((a, b) => b.diem_cuoi_cung - a.diem_cuoi_cung);
+    setRealtimeRanking(rankList);
+    setIsLoading(false);
   }, [profile, isAdmin, BACKEND_URL]);
 
   useEffect(() => {
@@ -260,7 +296,12 @@ export default function Dashboard() {
                 <tbody>
                   {history.map((item) => (
                     <tr key={item.lich_su_id}>
-                      <td style={{ fontWeight: 600 }}>{item.hoc_sinh.ho_ten}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <RoleAvatar role="HocSinh" size={24} />
+                          <span>{item.hoc_sinh.ho_ten}</span>
+                        </div>
+                      </td>
                       <td>
                         <span className={`badge ${item.tieu_chi.loai === 'Cong' ? 'badge-success' : 'badge-danger'}`}>
                           {item.tieu_chi.ten_tieu_chi}
@@ -324,7 +365,10 @@ export default function Dashboard() {
                           {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
                         </td>
                         <td style={{ fontWeight: 600, color: isCurrentUser ? 'var(--color-primary)' : 'var(--text-primary)' }}>
-                          {rank.hoc_sinh.ho_ten} {isCurrentUser && ' (Bạn)'}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <RoleAvatar role="HocSinh" size={24} />
+                            <span>{rank.hoc_sinh.ho_ten} {isCurrentUser && ' (Bạn)'}</span>
+                          </div>
                         </td>
                         <td>{rank.hoc_sinh.to?.ten_to || `Tổ ${rank.hoc_sinh.to_id || 1}`}</td>
                         <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>

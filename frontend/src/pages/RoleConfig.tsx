@@ -3,8 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   ShieldCheck, Save, RefreshCw, Key, UserCheck, 
   Search, Edit, Eye, EyeOff, Plus, CheckCircle, 
-  AlertCircle, X
+  AlertCircle, X, Trash2, UserX
 } from 'lucide-react';
+import RoleAvatar from '../components/RoleAvatar';
 import { BACKEND_URL } from '../config';
 
 interface PermConfig {
@@ -394,6 +395,54 @@ export default function RoleConfig() {
     }
   };
 
+  // Bỏ phân quyền chức vụ (chuyển về Học sinh)
+  const handleRevokeRoleOnly = () => {
+    if (!editingUser) return;
+    if (editingUser.vai_tro === 'Admin' && users.filter((u) => u.vai_tro === 'Admin').length <= 1) {
+      alert('Không thể bỏ quyền tài khoản Admin duy nhất trong hệ thống!');
+      return;
+    }
+
+    const confirmRevoke = window.confirm(
+      `Bạn có chắc chắn muốn bỏ phân quyền chức vụ của "${editingUser.ho_ten || editingUser.username}"?\n\nTài khoản sẽ được chuyển về quyền "Học sinh" bình thường.`
+    );
+    if (!confirmRevoke) return;
+
+    const updatedUsers = users.map((u) =>
+      u.id === editingUser.id ? { ...u, vai_tro: 'HocSinh' as const } : u
+    );
+    setUsers(updatedUsers);
+    localStorage.setItem('app_users_list', JSON.stringify(updatedUsers));
+    setIsModalOpen(false);
+    setMessage({
+      type: 'success',
+      text: `Đã thu hồi chức vụ của tài khoản [${editingUser.username}], chuyển về quyền Học sinh!`,
+    });
+  };
+
+  // Xóa tài khoản / Bỏ phân quyền hoàn toàn
+  const handleDeleteOrRevokeRole = () => {
+    if (!editingUser) return;
+    if (editingUser.vai_tro === 'Admin' && users.filter((u) => u.vai_tro === 'Admin').length <= 1) {
+      alert('Không thể xóa tài khoản Admin duy nhất trong hệ thống!');
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Bạn có chắc chắn muốn XÓA / BỎ PHÂN QUYỀN tài khoản [${editingUser.username}] (${editingUser.ho_ten}) khỏi hệ thống?\n\n- Nhấn OK để xác nhận xóa.\n- Nhấn Hủy (Cancel) để giữ lại.`
+    );
+    if (!confirmDelete) return;
+
+    const updatedUsers = users.filter((u) => u.id !== editingUser.id);
+    setUsers(updatedUsers);
+    localStorage.setItem('app_users_list', JSON.stringify(updatedUsers));
+    setIsModalOpen(false);
+    setMessage({
+      type: 'success',
+      text: `Đã xóa tài khoản [${editingUser.username}] thành công!`,
+    });
+  };
+
   const toggleShowPassword = (id: string | number) => {
     setShowPasswordMap((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -569,22 +618,7 @@ export default function RoleConfig() {
                     <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '14px 16px', fontWeight: 600 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-                              color: 'white',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.85rem',
-                              fontWeight: 700,
-                            }}
-                          >
-                            {u.ho_ten.charAt(0)}
-                          </div>
+                          <RoleAvatar role={u.vai_tro} size={34} />
                           <div>
                             <div>{u.ho_ten}</div>
                             {u.lop && u.lop !== 'Toàn trường' && (
@@ -937,21 +971,81 @@ export default function RoleConfig() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontWeight: 700 }}
-                >
-                  <Save size={16} /> Lưu cập nhật
-                </button>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '12px',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '16px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                {editingUser ? (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={handleRevokeRoleOnly}
+                      className="btn"
+                      style={{
+                        background: 'rgba(234, 88, 12, 0.1)',
+                        color: '#ea580c',
+                        border: '1px solid #fdba74',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 12px',
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                      }}
+                      title="Thu hồi chức vụ, chuyển về quyền Học sinh"
+                    >
+                      <UserX size={15} /> Bỏ phân quyền (về HS)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteOrRevokeRole}
+                      className="btn"
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        color: '#dc2626',
+                        border: '1px solid #fca5a5',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 12px',
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                      }}
+                      title="Xóa tài khoản này khỏi hệ thống"
+                    >
+                      <Trash2 size={15} /> Xóa tài khoản
+                    </button>
+                  </div>
+                ) : (
+                  <div />
+                )}
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setIsModalOpen(false)}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontWeight: 700 }}
+                  >
+                    <Save size={16} /> Lưu cập nhật
+                  </button>
+                </div>
               </div>
             </form>
           </div>

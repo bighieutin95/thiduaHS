@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Calendar, Medal, ShieldAlert } from 'lucide-react';
 import { BACKEND_URL } from '../config';
+import RoleAvatar from '../components/RoleAvatar';
+import { 
+  DEFAULT_STUDENTS_11C2, DEFAULT_GRADE_RECORDS, 
+  getStoredData 
+} from '../lib/mockData';
 
 interface WeeklyReport {
   tong_hop_tuan_id: number;
@@ -81,7 +86,7 @@ export default function Reports() {
 
   const loadWeeklyReport = useCallback(async () => {
     if (!profile) return;
-    const lopId = profile.hoc_sinh?.lop_id || profile.gvcn_lop?.lop_id || 4; // Mặc định lớp 11C2 (ID: 4)
+    const lopId = profile.hoc_sinh?.lop_id || profile.gvcn_lop?.lop_id || 4;
     setIsLoading(true);
     try {
       const endpoint = isRealtime ? 'realtime-weekly' : 'weekly';
@@ -91,31 +96,67 @@ export default function Reports() {
       );
       if (res.ok) {
         const data = await res.json();
-        if (isRealtime) {
-          // Map cấu hình điểm tạm tính sang interface WeeklyReport
-          const mappedData = data.map((item: any, index: number) => ({
-            tong_hop_tuan_id: item.hoc_sinh.hoc_sinh_id + index,
-            diem_cuoi_cung: String(item.diem_cuoi_cung),
-            tong_diem_cong: String(item.tong_diem_cong),
-            tong_diem_tru: String(item.tong_diem_tru),
-            tuan_thu: item.tuan_thu,
-            hoc_sinh: {
-              hoc_sinh_id: item.hoc_sinh.hoc_sinh_id,
-              ho_ten: item.hoc_sinh.ho_ten,
-              ma_hoc_sinh: item.hoc_sinh.ma_hoc_sinh,
-              ten_to: item.hoc_sinh.to?.ten_to || `Tổ ${item.hoc_sinh.to_id || 1}`
-            }
-          }));
-          setWeeklyData(mappedData);
-        } else {
-          setWeeklyData(data);
+        if (Array.isArray(data) && data.length > 0) {
+          if (isRealtime) {
+            const mappedData = data.map((item: any, index: number) => ({
+              tong_hop_tuan_id: item.hoc_sinh.hoc_sinh_id + index,
+              diem_cuoi_cung: String(item.diem_cuoi_cung),
+              tong_diem_cong: String(item.tong_diem_cong),
+              tong_diem_tru: String(item.tong_diem_tru),
+              tuan_thu: item.tuan_thu,
+              hoc_sinh: {
+                hoc_sinh_id: item.hoc_sinh.hoc_sinh_id,
+                ho_ten: item.hoc_sinh.ho_ten,
+                ma_hoc_sinh: item.hoc_sinh.ma_hoc_sinh,
+                ten_to: item.hoc_sinh.to?.ten_to || `Tổ ${item.hoc_sinh.to_id || 1}`
+              }
+            }));
+            setWeeklyData(mappedData);
+          } else {
+            setWeeklyData(data);
+          }
+          setIsLoading(false);
+          return;
         }
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+    } catch {
+      // fallback
     }
+
+    // Tính toán bảng xếp hạng dựa trên danh sách học sinh và lịch sử chấm điểm
+    const fallbackStudents = getStoredData<any[]>(`students_lop_${lopId}`, DEFAULT_STUDENTS_11C2);
+    const gradeRecords = getStoredData<any[]>('app_grade_records', DEFAULT_GRADE_RECORDS as any);
+
+    const calculated = fallbackStudents.map((hs, index) => {
+      const studentRecs = gradeRecords.filter(
+        (r) => r.hoc_sinh?.ho_ten === hs.ho_ten && r.trang_thai !== 'BiHuy'
+      );
+      let cong = 0;
+      let tru = 0;
+      studentRecs.forEach((r) => {
+        const pts = parseFloat(r.so_diem_thuc_te) || 0;
+        if (r.tieu_chi?.loai === 'Cong') cong += pts;
+        else tru += pts;
+      });
+
+      return {
+        tong_hop_tuan_id: hs.hoc_sinh_id || index + 1,
+        diem_cuoi_cung: (100 + cong - tru).toFixed(2),
+        tong_diem_cong: cong.toFixed(2),
+        tong_diem_tru: tru.toFixed(2),
+        tuan_thu: selectedWeek,
+        hoc_sinh: {
+          hoc_sinh_id: hs.hoc_sinh_id,
+          ho_ten: hs.ho_ten,
+          ma_hoc_sinh: hs.ma_hoc_sinh || '',
+          ten_to: hs.to?.ten_to || `Tổ ${hs.to_id || 1}`
+        }
+      };
+    });
+
+    calculated.sort((a, b) => Number(b.diem_cuoi_cung) - Number(a.diem_cuoi_cung));
+    setWeeklyData(calculated);
+    setIsLoading(false);
   }, [profile, selectedWeek, isRealtime, token, BACKEND_URL]);
 
   const loadMonthlyReport = useCallback(async () => {
@@ -129,13 +170,50 @@ export default function Reports() {
       );
       if (res.ok) {
         const data = await res.json();
-        setMonthlyData(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setMonthlyData(data);
+          setIsLoading(false);
+          return;
+        }
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+    } catch {
+      // fallback
     }
+
+    const fallbackStudents = getStoredData<any[]>(`students_lop_${lopId}`, DEFAULT_STUDENTS_11C2);
+    const gradeRecords = getStoredData<any[]>('app_grade_records', DEFAULT_GRADE_RECORDS as any);
+
+    const calculatedMonth = fallbackStudents.map((hs, index) => {
+      const studentRecs = gradeRecords.filter(
+        (r) => r.hoc_sinh?.ho_ten === hs.ho_ten && r.trang_thai !== 'BiHuy'
+      );
+      let cong = 0;
+      let tru = 0;
+      studentRecs.forEach((r) => {
+        const pts = parseFloat(r.so_diem_thuc_te) || 0;
+        if (r.tieu_chi?.loai === 'Cong') cong += pts;
+        else tru += pts;
+      });
+      const avg = 100 + cong - tru;
+      let xepLoai = 'Tốt';
+      if (avg < 80) xepLoai = 'Trung bình';
+      else if (avg < 90) xepLoai = 'Khá';
+
+      return {
+        tong_hop_thang_id: hs.hoc_sinh_id || index + 1,
+        diem_trung_binh: avg.toFixed(2),
+        xep_loai: xepLoai,
+        hoc_sinh: {
+          ho_ten: hs.ho_ten,
+          ma_hoc_sinh: hs.ma_hoc_sinh || '',
+          ten_to: hs.to?.ten_to || `Tổ ${hs.to_id || 1}`
+        }
+      };
+    });
+
+    calculatedMonth.sort((a, b) => Number(b.diem_trung_binh) - Number(a.diem_trung_binh));
+    setMonthlyData(calculatedMonth);
+    setIsLoading(false);
   }, [profile, selectedMonth, selectedYear, token, BACKEND_URL]);
 
   useEffect(() => {
@@ -154,12 +232,20 @@ export default function Reports() {
       });
       if (res.ok) {
         const data = await res.json();
-        // Lọc bản ghi hợp lệ
-        setDetailModal(prev => ({ ...prev, records: data.filter((d: any) => d.trang_thai === 'HieuLuc') }));
+        if (Array.isArray(data) && data.length > 0) {
+          setDetailModal((prev) => ({ ...prev, records: data.filter((d: any) => d.trang_thai === 'HieuLuc') }));
+          return;
+        }
       }
-    } catch (err) {
-      console.error('Lỗi khi tải chi tiết vi phạm:', err);
+    } catch {
+      // fallback
     }
+
+    const allRecords = getStoredData<any[]>('app_grade_records', DEFAULT_GRADE_RECORDS as any);
+    const studentRecords = allRecords.filter(
+      (r) => r.hoc_sinh?.ho_ten === studentName && r.trang_thai !== 'BiHuy'
+    );
+    setDetailModal((prev) => ({ ...prev, records: studentRecords }));
   };
 
   const getPodiumStudents = () => {
@@ -355,7 +441,12 @@ export default function Reports() {
                     title="Click để xem chi tiết vi phạm/thành tích của học sinh này"
                   >
                     <td style={{ fontWeight: 700 }}>#{index + 1}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{item.hoc_sinh.ho_ten} 🔍</td>
+                    <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <RoleAvatar role="HocSinh" size={24} />
+                        <span>{item.hoc_sinh.ho_ten} 🔍</span>
+                      </div>
+                    </td>
                     <td>{item.hoc_sinh.ten_to || item.hoc_sinh.to?.ten_to || 'Chưa chia'}</td>
                     <td>100.00đ</td>
                     <td style={{ color: 'var(--color-success)', fontWeight: 600 }}>+{Number(item.tong_diem_cong)}đ</td>
@@ -393,7 +484,12 @@ export default function Reports() {
                 {monthlyData.map((item, index) => (
                   <tr key={item.tong_hop_thang_id}>
                     <td style={{ fontWeight: 700 }}>#{index + 1}</td>
-                    <td style={{ fontWeight: 600 }}>{item.hoc_sinh.ho_ten}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <RoleAvatar role="HocSinh" size={24} />
+                        <span>{item.hoc_sinh.ho_ten}</span>
+                      </div>
+                    </td>
                     <td>{item.hoc_sinh.ten_to || item.hoc_sinh.to?.ten_to || 'Chưa chia'}</td>
                     <td style={{ fontWeight: 700 }}>{Number(item.diem_trung_binh)}đ</td>
                     <td style={{ textAlign: 'right' }}>

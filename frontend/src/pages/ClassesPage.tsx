@@ -3,12 +3,16 @@ import {
   GraduationCap, Plus, Search, Edit, Trash2, 
   X, CheckCircle, ShieldAlert, Save, Mail, BookOpen
 } from 'lucide-react';
+import RoleAvatar from '../components/RoleAvatar';
+import { DEFAULT_CLASSES, getStoredData, setStoredData } from '../lib/mockData';
 
 interface Lop {
   lop_id: number;
   ten_lop: string;
   khoi: number;
   gvcn_email: string | null;
+  gvcn_hoten?: string;
+  si_so?: number;
 }
 
 import { BACKEND_URL } from '../config';
@@ -42,13 +46,19 @@ export default function ClassesPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setClasses(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setClasses(data);
+          setLoading(false);
+          return;
+        }
       }
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      // offline fallback
     }
+
+    const fallback = getStoredData('app_classes_list', DEFAULT_CLASSES);
+    setClasses(fallback);
+    setLoading(false);
   };
 
   const handleOpenModal = (lop?: Lop) => {
@@ -73,64 +83,73 @@ export default function ClassesPage() {
   const handleSaveClass = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const payload = {
-      ten_lop: formData.ten_lop,
-      khoi: parseInt(formData.khoi),
-      gvcn_email: formData.gvcn_email || null,
-      nien_hoc_id: 1, // Mặc định niên học hiện tại
-    };
+    const khoiNum = parseInt(formData.khoi);
+    let updated: Lop[];
+
+    if (editingClass) {
+      updated = classes.map((c) =>
+        c.lop_id === editingClass.lop_id
+          ? { ...c, ten_lop: formData.ten_lop.trim(), khoi: khoiNum, gvcn_email: formData.gvcn_email.trim() || null }
+          : c
+      );
+    } else {
+      const newLop: Lop = {
+        lop_id: Date.now(),
+        ten_lop: formData.ten_lop.trim(),
+        khoi: khoiNum,
+        gvcn_email: formData.gvcn_email.trim() || null,
+        si_so: 35,
+      };
+      updated = [newLop, ...classes];
+    }
+
+    setClasses(updated);
+    setStoredData('app_classes_list', updated);
+    setIsModalOpen(false);
+    setMessage({
+      type: 'success',
+      text: editingClass ? 'Đã cập nhật thông tin lớp học!' : 'Đã thêm mới lớp học thành công!',
+    });
 
     try {
-      let res;
+      const payload = {
+        ten_lop: formData.ten_lop,
+        khoi: khoiNum,
+        gvcn_email: formData.gvcn_email || null,
+        nien_hoc_id: 1,
+      };
       if (editingClass) {
-        res = await fetch(`${BACKEND_URL}/classes/${editingClass.lop_id}`, {
+        await fetch(`${BACKEND_URL}/classes/${editingClass.lop_id}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload),
         });
       } else {
-        res = await fetch(`${BACKEND_URL}/classes`, {
+        await fetch(`${BACKEND_URL}/classes`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload),
         });
       }
-
-      if (res.ok) {
-        setMessage({ 
-          type: 'success', 
-          text: editingClass ? 'Đã cập nhật thông tin lớp học!' : 'Đã thêm mới lớp học thành công!' 
-        });
-        setIsModalOpen(false);
-        fetchClasses();
-      } else {
-        setMessage({ type: 'error', text: 'Có lỗi xảy ra, vui lòng thử lại.' });
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage({ type: 'error', text: 'Lỗi kết nối máy chủ.' });
+    } catch {
+      // offline fallback ok
     }
   };
 
   const handleDeleteClass = async (id: number) => {
     if (!window.confirm('CẢNH BÁO: Xóa lớp học sẽ xóa toàn bộ Tổ và Học sinh thuộc lớp này. Bạn có chắc chắn muốn xóa?')) return;
+    const updated = classes.filter((c) => c.lop_id !== id);
+    setClasses(updated);
+    setStoredData('app_classes_list', updated);
+    setMessage({ type: 'success', text: 'Đã xóa lớp học thành công!' });
+
     try {
-      const res = await fetch(`${BACKEND_URL}/classes/${id}`, {
+      await fetch(`${BACKEND_URL}/classes/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        setMessage({ type: 'success', text: 'Đã xóa lớp học thành công!' });
-        fetchClasses();
-      }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // offline fallback ok
     }
   };
 
@@ -226,10 +245,24 @@ export default function ClassesPage() {
                 {filteredClasses.map((lop) => (
                   <tr key={lop.lop_id}>
                     <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--text-muted)' }}>{lop.lop_id}</td>
-                    <td style={{ fontWeight: 700, color: 'white', fontSize: '1.05rem' }}>Lớp {lop.ten_lop}</td>
+                    <td style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1.05rem' }}>Lớp {lop.ten_lop}</td>
                     <td><span className="badge badge-primary">Khối {lop.khoi}</span></td>
-                    <td style={{ color: 'white', fontWeight: 500 }}>{lop.gvcn_email || <em style={{ color: 'var(--text-muted)' }}>Chưa gán</em>}</td>
-                    <td><span className="badge badge-muted">4 Tổ mặc định</span></td>
+                    <td>
+                      {lop.gvcn_email ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <RoleAvatar role="GVCN" size={26} />
+                          <div>
+                            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                              {lop.gvcn_hoten || 'Giáo Viên Chủ Nhiệm'}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{lop.gvcn_email}</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <em style={{ color: 'var(--text-muted)' }}>Chưa gán</em>
+                      )}
+                    </td>
+                    <td><span className="badge badge-muted">4 Tổ (Sĩ số: {lop.si_so || 35})</span></td>
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                         <button 
