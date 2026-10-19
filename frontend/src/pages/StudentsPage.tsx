@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import RoleAvatar from '../components/RoleAvatar';
 import { BACKEND_URL } from '../config';
-import { DEFAULT_CLASSES, DEFAULT_STUDENTS_11C2, getStoredData, setStoredData } from '../lib/mockData';
+import { DEFAULT_CLASSES, DEFAULT_STUDENTS_11C2, DEFAULT_GRADE_RECORDS, getStoredData, setStoredData } from '../lib/mockData';
 
 interface Lop {
   lop_id: number;
@@ -141,9 +141,19 @@ export default function StudentsPage() {
     setStoredData(storageAttendanceKey, newAttendance);
   };
 
+  // Helper tính tuần thứ mấy trong năm học
+  const getTuanThu = (date: Date): number => {
+    const baseDate = new Date(2026, 8, 5); // 05/09/2026
+    const d1 = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const d2 = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+    const diffTime = d1.getTime() - d2.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return 1 + Math.floor(diffDays / 7);
+  };
+
   // Toggle hoặc chuyển đổi trạng thái điểm danh của 1 học sinh ở 1 ngày:
-  // '' (Có mặt) -> 'P' (Có phép) -> 'K' (Không phép) -> 'NV' (Nằm viện) -> ''
-  const cycleAttendanceStatus = (hocSinhId: number, dayIndex: number) => {
+  // '' (Có mặt) -> 'P' (Có phép: -2đ) -> 'K' (Không phép: -5đ) -> 'NV' (Nằm viện: 0đ) -> ''
+  const cycleAttendanceStatus = async (hocSinhId: number, dayIndex: number) => {
     const currentVal = attendance[hocSinhId]?.[dayIndex] || '';
     let nextVal: 'P' | 'K' | 'NV' | '' = '';
     if (currentVal === '') nextVal = 'P';
@@ -159,6 +169,84 @@ export default function StudentsPage() {
       },
     };
     saveAttendance(updated);
+
+    // Tính toán thông tin ngày và học sinh
+    const targetDay = new Date(currentMonday);
+    targetDay.setDate(currentMonday.getDate() + dayIndex);
+    const dateKey = formatDateKey(targetDay);
+    const dayLabel = weekDays[dayIndex]?.label || `Ngày ${dayIndex + 1}`;
+    const dateDisplay = formatDateDDMM(targetDay);
+    const student = students.find((s) => s.hoc_sinh_id === hocSinhId);
+    const weekNum = getTuanThu(targetDay);
+    const emulationRecordId = `att-rec-${hocSinhId}-${dateKey}`;
+
+    // Lấy lịch sử chấm điểm hiện tại
+    const existingRecords = getStoredData<any[]>('app_grade_records', DEFAULT_GRADE_RECORDS as any);
+
+    if (nextVal === 'P' || nextVal === 'K') {
+      const isKhongPhep = nextVal === 'K';
+      const tieuChiTen = isKhongPhep ? 'Nghỉ học không phép' : 'Nghỉ học có phép';
+      const soDiemTru = isKhongPhep ? '5.00' : '2.00';
+      const moTa = `Điểm danh vắng ${isKhongPhep ? 'không phép (K)' : 'có phép (P)'} - ${dayLabel} (${dateDisplay})`;
+
+      const newRecord = {
+        lich_su_id: emulationRecordId,
+        nguoi_cham: {
+          ho_ten: profile?.ho_ten ? `${profile.ho_ten} (Điểm danh)` : 'GVCN / Cán sự (Điểm danh)',
+        },
+        hoc_sinh: {
+          ho_ten: student?.ho_ten || 'Học sinh',
+        },
+        tieu_chi: {
+          ten_tieu_chi: tieuChiTen,
+          loai: 'Tru' as const,
+        },
+        so_diem_thuc_te: soDiemTru,
+        ngay_vi_pham: `${dateKey}T07:30:00Z`,
+        mo_ta: moTa,
+        tuan_thu: weekNum,
+        trang_thai: 'HieuLuc' as const,
+      };
+
+      // Cập nhật vào danh sách lịch sử chấm điểm thi đua (ghi đè nếu đã tồn tại bản ghi điểm danh ngày này)
+      const filtered = existingRecords.filter((r) => r.lich_su_id !== emulationRecordId);
+      const updatedRecords = [newRecord, ...filtered];
+      setStoredData('app_grade_records', updatedRecords);
+
+      setMessage({
+        type: 'success',
+        text: `Đã ghi nhận vắng ${nextVal} (-${soDiemTru}đ thi đua) cho [${student?.ho_ten}] vào tuần ${weekNum}!`,
+      });
+
+      // Đồng bộ Backend API nếu có kết nối
+      try {
+        await fetch(`${BACKEND_URL}/emulation/grade`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            hoc_sinh_id: hocSinhId,
+            tieu_chi_id: isKhongPhep ? 2 : 3,
+            ngay_vi_pham: `${dateKey}T07:30:00Z`,
+            mo_ta: moTa,
+          }),
+        });
+      } catch {
+        // offline fallback ok
+      }
+    } else {
+      // Khi chuyển về 'NV' (Nằm viện) hoặc '' (Có mặt) -> Xóa hoặc hủy trừ điểm phát sinh từ điểm danh
+      const filtered = existingRecords.filter((r) => r.lich_su_id !== emulationRecordId);
+      if (filtered.length !== existingRecords.length) {
+        setStoredData('app_grade_records', filtered);
+        setMessage({
+          type: 'success',
+          text: `Đã hủy trừ điểm thi đua chuyên cần ngày ${dayLabel} cho [${student?.ho_ten}]!`,
+        });
+      }
+    }
   };
 
   // Chuyển tuần

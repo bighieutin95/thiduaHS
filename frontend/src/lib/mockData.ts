@@ -41,6 +41,7 @@ export interface MockGradeRecord {
   ngay_vi_pham: string;
   mo_ta: string;
   tuan_thu: number;
+  trang_thai?: 'HieuLuc' | 'BiHuy';
 }
 
 // 1. Dữ liệu Lớp học mặc định
@@ -279,7 +280,7 @@ export const DEFAULT_STUDENTS_11C2: MockStudent[] = [
 export const DEFAULT_CRITERIA: MockCriterion[] = [
   { tieu_chi_id: 1, ten_tieu_chi: 'Đi học muộn', nhom_tieu_chi: 'Chuyên cần', loai: 'Tru', so_diem: '2.00', trang_thai: true },
   { tieu_chi_id: 2, ten_tieu_chi: 'Nghỉ học không phép', nhom_tieu_chi: 'Chuyên cần', loai: 'Tru', so_diem: '5.00', trang_thai: true },
-  { tieu_chi_id: 3, ten_tieu_chi: 'Nghỉ học có phép', nhom_tieu_chi: 'Chuyên cần', loai: 'Tru', so_diem: '0.00', trang_thai: true },
+  { tieu_chi_id: 3, ten_tieu_chi: 'Nghỉ học có phép', nhom_tieu_chi: 'Chuyên cần', loai: 'Tru', so_diem: '2.00', trang_thai: true },
   { tieu_chi_id: 4, ten_tieu_chi: 'Không mặc đồng phục / không đeo bảng tên', nhom_tieu_chi: 'Nền nếp', loai: 'Tru', so_diem: '2.00', trang_thai: true },
   { tieu_chi_id: 5, ten_tieu_chi: 'Sử dụng điện thoại trong giờ học', nhom_tieu_chi: 'Học tập', loai: 'Tru', so_diem: '5.00', trang_thai: true },
   { tieu_chi_id: 6, ten_tieu_chi: 'Mất trật tự trong giờ học', nhom_tieu_chi: 'Học tập', loai: 'Tru', so_diem: '2.00', trang_thai: true },
