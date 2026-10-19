@@ -29,7 +29,7 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   isLoading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  // signInWithGoogle removed per user request
   signInMock: (email: string, password?: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
@@ -126,14 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
-  const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
-  };
+  // Google sign-in removed per user request
 
   const signInMock = async (email: string, password?: string) => {
     setIsLoading(true);
@@ -205,7 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         isLoading,
-        signInWithGoogle,
+        // signInWithGoogle removed per user request
         signInMock,
         signOut,
         isAdmin,
